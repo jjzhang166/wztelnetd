@@ -114,7 +114,7 @@ void ShellExecute(char *shell) {
 	pclose(fp);
 }
 
-//·¢ËÍÊı¾İ
+//å‘é€æ•°æ®
 int SocketSend(int Socket, char *sendStr, int sendLen) {
 	int rvCount = 0;
 	int allC = 0;
@@ -166,7 +166,7 @@ void print_login_issue(const char *issue_file, const char *tty) {
 
 	time(&t);
 	uname(&uts);
-	//ÏòÇ°¶ËÏÔÊ¾ĞÅÏ¢
+	//å‘å‰ç«¯æ˜¾ç¤ºä¿¡æ¯
 	puts("\r"); /* start a new line */
 	printf(LOG_SERVER_TITLE, tty);
 
@@ -221,7 +221,7 @@ void print_login_issue(const char *issue_file, const char *tty) {
 				break;
 			}
 		}
-		//¿ÉÒÔ¼ÓÈëµ±Ç°TTYºÅµÄÏÔÊ¾
+		//å¯ä»¥åŠ å…¥å½“å‰TTYå·çš„æ˜¾ç¤º
 		fputs(outbuf, stdout);
 	}
 	fclose(fp);
@@ -382,10 +382,10 @@ void ClientThread::Run() {
 	char recvData[512];
 	char shell[128];
 
-	int keepAlive = 1; //Éè¶¨KeepAlive
-	int keepIdle = 100; //¿ªÊ¼Ê×´ÎKeepAliveÌ½²âÇ°µÄTCP¿Õ±ÕÊ±¼ä
-	int keepInterval = 500; //Á½´ÎKeepAliveÌ½²â¼äµÄÊ±¼ä¼ä¸ô
-	int keepCount = 3; //ÅĞ¶¨¶Ï¿ªÇ°µÄKeepAliveÌ½²â´ÎÊı
+	int keepAlive = 1; //è®¾å®šKeepAlive
+	int keepIdle = 100; //å¼€å§‹é¦–æ¬¡KeepAliveæ¢æµ‹å‰çš„TCPç©ºé—­æ—¶é—´
+	int keepInterval = 500; //ä¸¤æ¬¡KeepAliveæ¢æµ‹é—´çš„æ—¶é—´é—´éš”
+	int keepCount = 3; //åˆ¤å®šæ–­å¼€å‰çš„KeepAliveæ¢æµ‹æ¬¡æ•°
 
 	struct timeval timeout;
 
@@ -397,12 +397,12 @@ void ClientThread::Run() {
 	char ttyName[128];
 
 	unsigned char *ptrBuf1;
-	unsigned char buf1[BUFSIZE]; //½ÓÊÕsocket·¢¹ıÀ´µÄÊı¾İ
+	unsigned char buf1[BUFSIZE]; //æ¥æ”¶socketå‘è¿‡æ¥çš„æ•°æ®
 	int buf1Len = 0;
 	ptrBuf1 = buf1;
 
 	unsigned char *ptrBuf2;
-	unsigned char buf2[BUFSIZE]; //·¢ËÍ¸øsocketµÄÊı¾İ
+	unsigned char buf2[BUFSIZE]; //å‘é€ç»™socketçš„æ•°æ®
 	int buf2Len = 0;
 	ptrBuf2 = buf2;
 
@@ -440,7 +440,7 @@ void ClientThread::Run() {
 	fcntl(ptyfd, F_SETFL, fcntl(ptyfd, F_GETFL) | O_NONBLOCK);
 	fcntl(ptyfd, F_SETFD, FD_CLOEXEC);
 
-	//<2>ÉèÖÃsocket×´Ì¬,±£³Ö³¤Á¬½Ó  // ÉèÖÃKeepAlive²ÎÊı
+	//<2>è®¾ç½®socketçŠ¶æ€,ä¿æŒé•¿è¿æ¥  // è®¾ç½®KeepAliveå‚æ•°
 	if (setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, (void*) &keepAlive,
 			sizeof(keepAlive)) == -1) {
 	}
@@ -458,10 +458,10 @@ void ClientThread::Run() {
 	SocketSend(socket, iacs_to_send, sizeof(iacs_to_send));
 
 	fflush(NULL);
-	::signal(SIGPIPE, SIG_IGN ); //ºöÂÔsocket´íÎó²úÉúµÄSIGPIPEĞÅºÅ,·ÀÖ¹½ø³ÌÒì³£ÍË³ö
-	::signal(SIGCHLD, SIG_IGN ); //ºöÂÔ×Ó½ø³ÌÍË³öĞÅºÅ
-	::signal(SIGSEGV, SIG_IGN ); //ÁíÒ»¶Ë¶Ï¿ª
-	//::signal(SIGSEGV, &sig_int); //ÁíÒ»¶Ë¶Ï¿ª
+	::signal(SIGPIPE, SIG_IGN ); //å¿½ç•¥socketé”™è¯¯äº§ç”Ÿçš„SIGPIPEä¿¡å·,é˜²æ­¢è¿›ç¨‹å¼‚å¸¸é€€å‡º
+	::signal(SIGCHLD, SIG_IGN ); //å¿½ç•¥å­è¿›ç¨‹é€€å‡ºä¿¡å·
+	::signal(SIGSEGV, SIG_IGN ); //å¦ä¸€ç«¯æ–­å¼€
+	//::signal(SIGSEGV, &sig_int); //å¦ä¸€ç«¯æ–­å¼€
 	pid = fork(); /* NOMMU-friendly */
 	if (pid > 0) {
 		FD_ZERO(&rdfdset);
@@ -498,12 +498,12 @@ void ClientThread::Run() {
 					fdMax = ptyfd;
 				}
 			}
-			//socketÊÇ·ñÓĞ¶ÁĞ´£¬³¬Ê±Ê±¼ä30Ãë
+			//socketæ˜¯å¦æœ‰è¯»å†™ï¼Œè¶…æ—¶æ—¶é—´30ç§’
 			count = 0;
 			if (fdMax < 0) {
 				fdMax = 0;
 			}
-			timeout.tv_sec = 30; //³¬Ê±ÅĞ¶ÏÎª30Ãë
+			timeout.tv_sec = 30; //è¶…æ—¶åˆ¤æ–­ä¸º30ç§’
 			timeout.tv_usec = 0;
 
 			count = select(fdMax + 1, &rdfdset, &wrfdset, NULL, &timeout);
@@ -520,16 +520,16 @@ void ClientThread::Run() {
 				ShellExecute(shell);
 				//exit(0);
 			} else {
-				//ÓĞ¶ÁĞ´Êı¾İ
-				//ÅĞ¶ÏsokcketÊÇ·ñÓĞ¿É¶ÁÊı¾İ£¬Èç¹ûÓĞÔò°ÑÊı¾İ¶Á³ö·ÅÈëbuf1
+				//æœ‰è¯»å†™æ•°æ®
+				//åˆ¤æ–­sokcketæ˜¯å¦æœ‰å¯è¯»æ•°æ®ï¼Œå¦‚æœæœ‰åˆ™æŠŠæ•°æ®è¯»å‡ºæ”¾å…¥buf1
 				count = 0;
 				memset(str, 0x00, 256);
 				if (FD_ISSET(socket,&rdfdset)) {
 					memset(recvData, 0x00, 512);
-					count = socket_read(socket, recvData, 256); //Ïòbuf1ÖĞ¶ÁÈësocket·¢À´Êı¾İ
+					count = socket_read(socket, recvData, 256); //å‘buf1ä¸­è¯»å…¥socketå‘æ¥æ•°æ®
 					memcpy(ptrBuf1, recvData, count);
 					if (count <= 0) {
-						break; //¹Ø±Õµ±Ç°Á¬½Ó
+						break; //å…³é—­å½“å‰è¿æ¥
 					} else {
 						ptrBuf1 = ptrBuf1 + count;
 						buf1Len = buf1Len + count;
@@ -540,7 +540,7 @@ void ClientThread::Run() {
 				if (FD_ISSET(ptyfd,&rdfdset)) {
 					count = safe_read(ptyfd, ptrBuf2, 256);
 					if (count <= 0) {
-						break; //¹Ø±Õµ±Ç°Á¬½Ó
+						break; //å…³é—­å½“å‰è¿æ¥
 					} else {
 						ptrBuf2 = ptrBuf2 + count;
 						buf2Len = buf2Len + count;
@@ -551,12 +551,12 @@ void ClientThread::Run() {
 					int num_totty;
 					unsigned char *ptr;
 					ptr = remove_iacs((unsigned char *) buf1, buf1Len, ptyfd,
-							&num_totty); //È¥µôÌØÊâ×Ö·û
+							&num_totty); //å»æ‰ç‰¹æ®Šå­—ç¬¦
 					count = safe_write(ptyfd, ptr, num_totty);
 					if (count < 0) {
-						if (errno != EAGAIN) //Ó¦ÓÃ³ÌĞòÏÖÔÚÃ»ÓĞÊı¾İ¿ÉĞ´ÇëÉÔºóÔÙÊÔ
+						if (errno != EAGAIN) //åº”ç”¨ç¨‹åºç°åœ¨æ²¡æœ‰æ•°æ®å¯å†™è¯·ç¨åå†è¯•
 						{
-							break; //¹Ø±Õµ±Ç°Á¬½Ó
+							break; //å…³é—­å½“å‰è¿æ¥
 						}
 					} else {
 						memcpy(LsStr, ptr + count, num_totty - count);
@@ -565,14 +565,14 @@ void ClientThread::Run() {
 						ptrBuf1 = buf1 + buf1Len;
 					}
 				}
-				//ÅĞ¶ÏsocketÊÇ·ñ¿ÉÒÔĞ´ÈëÊı¾İ£¬Èç¹û¿ÉÒÔÔò°Ñbuf2Ğ´Èësocket
+				//åˆ¤æ–­socketæ˜¯å¦å¯ä»¥å†™å…¥æ•°æ®ï¼Œå¦‚æœå¯ä»¥åˆ™æŠŠbuf2å†™å…¥socket
 				count = 0;
 				if ((FD_ISSET(socket, &wrfdset)) && (buf2Len > 0)) {
 					count = iac_safe_write(socket, (char *) buf2, buf2Len);
 					if (count < 0) {
-						if (errno != EAGAIN) //Èç¹û²»ÄÜĞ´Èë£¬Ôò¼ÌĞøÏÂÒ»²½¼ì²é
+						if (errno != EAGAIN) //å¦‚æœä¸èƒ½å†™å…¥ï¼Œåˆ™ç»§ç»­ä¸‹ä¸€æ­¥æ£€æŸ¥
 						{
-							break; //¹Ø±Õµ±Ç°Á¬½Ó
+							break; //å…³é—­å½“å‰è¿æ¥
 						}
 					} else {
 						memcpy(LsStr, buf2 + count, buf2Len - count);
@@ -589,11 +589,11 @@ void ClientThread::Run() {
 		close(ptyfd);
 		close(socket);
 	} else if (pid < 0) {
-		//´´½¨×Ó½ø³ÌÊ§°Ü
+		//åˆ›å»ºå­è¿›ç¨‹å¤±è´¥
 		close(ttyfd);
 		close(ptyfd);
 		close(socket);
-	} else if (pid == 0) { //×Ó½ø³Ì¿ªÊ¼Ö´ĞĞ
+	} else if (pid == 0) { //å­è¿›ç¨‹å¼€å§‹æ‰§è¡Œ
 		setenv("TERM", this->type.c_str(), 1);
 		setsid();
 		close(0);
@@ -612,7 +612,7 @@ void ClientThread::Run() {
 
 		print_login_issue("/etc/issue.net", ttyName);
 
-		//Æô¶¯µÇÂ½³ÌĞò
+		//å¯åŠ¨ç™»é™†ç¨‹åº
 		char login[] = "/bin/login";
 		char *login_argv[2] = { login, NULL };
 		execvp("/bin/login", (char **) login_argv);
