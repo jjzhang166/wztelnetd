@@ -20,13 +20,17 @@ install:
 	/sbin/chkconfig --list | grep wztelnetd
 
 uninstall:
-	/sbin/service wztelnetd stop
-	sleep 2
 	rm -f /etc/stelnetd.conf
 	rm -f /etc/wztelnetd.cfg
 	rm -f /etc/init.d/wztelnetd
 	rm -f /sbin/wztelnetd
 	rm -f /var/log/wztelnetd.log
 	rm -f /var/run/wztelnetd.pid
+	
+start:
+	service wztelnetd start
+
+stop:
+	service wztelnetd stop
 
 .PHONY: all clean install uninstall

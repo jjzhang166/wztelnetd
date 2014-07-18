@@ -1,12 +1,14 @@
 #include "ThreadCreator.h"
 
-ThreadCreator::ThreadCreator(Runnable* runnable) {
+ThreadCreator::ThreadCreator(Runnable* runnable) :
+		pid(0) {
 	this->handle = 0;
 	this->runnable = runnable;
 	this->autoDestroy = false;
 }
 
-ThreadCreator::ThreadCreator(Runnable* runnable, bool autoDestroy) {
+ThreadCreator::ThreadCreator(Runnable* runnable, bool autoDestroy) :
+		pid(0) {
 	this->handle = 0;
 	this->runnable = runnable;
 	this->autoDestroy = autoDestroy;
@@ -35,7 +37,8 @@ bool ThreadCreator::AutoDestroy() {
 }
 
 int ThreadCreator::Start() {
-	this->handle = pthread_create(&pid, (const pthread_attr_t*)0, ThreadFunction, (void*)this);
+	this->handle = pthread_create(&pid, (const pthread_attr_t*) 0,
+			ThreadFunction, (void*) this);
 	return this->handle;
 }
 

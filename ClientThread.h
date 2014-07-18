@@ -23,8 +23,8 @@ protected:
 	struct in_addr clientAddress;
 	Properties* properties;
 
-	int OpenPty(char* ttyName, char* clientIp, int screenNum);
-	int OpenPtmx(char* ttyName, char* clientIp, int screenNum);
+	int OpenPty(char* ttyName, char* clientIp, char* screenNum);
+	int OpenPtmx(char* ttyName, char* clientIp, char* screenNum);
 
 public:
 	ClientThread();

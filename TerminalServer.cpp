@@ -7,7 +7,6 @@
 
 #include "TerminalServer.h"
 
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -21,7 +20,8 @@
 #include <arpa/inet.h>
 #include "ClientThread.h"
 #include "ThreadCreator.h"
-#include "string.h"
+#include <string.h>
+#include "Messages.h"
 
 #define BACKLOG 100
 
@@ -90,7 +90,7 @@ void TerminalServer::Run() {
 
 	if (bind(sockfd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr))
 			== -1) {
-		printf("端口无法打开：%d，请确认该端口是否已经被占用！\r\n", port);
+		printf(ERROR_CAN_NOT_OPEN_PORT, port);
 		return;
 	}
 	close_on_exec_on(sockfd);

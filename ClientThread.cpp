@@ -23,6 +23,8 @@
 #include <sys/ioctl.h>
 #include <stdlib.h>
 #include <string.h>
+#include "Messages.h"
+#include <math.h>
 
 static const char fmtstr_d[] = "%A, %d %B %Y";
 static const char fmtstr_t[] = "%H:%M:%S";
@@ -49,12 +51,12 @@ void ClientThread::SetTtyConfig(Properties* prop) {
 	this->properties = prop;
 }
 
-int ClientThread::OpenPtmx(char* ttyName, char* clientIp, int screenNum) {
+int ClientThread::OpenPtmx(char* ttyName, char* clientIp, char* screenNum) {
 	char key[128];
-	sprintf(key, "%s.%d", clientIp, screenNum);
+	sprintf(key, "%s.%s", clientIp, screenNum);
 	string tty = properties->GetString(key);
 	if (tty == "") {
-		printf("%s.%d在绑定配置文件中没有设置！\r\n", clientIp, screenNum);
+		printf(ERROR_CAN_NOT_FOUND_CFG, clientIp, screenNum);
 		return -1;
 	}
 
@@ -69,12 +71,12 @@ int ClientThread::OpenPtmx(char* ttyName, char* clientIp, int screenNum) {
 	return p;
 }
 
-int ClientThread::OpenPty(char* ttyName, char* clientIp, int screenNum) {
+int ClientThread::OpenPty(char* ttyName, char* clientIp, char* screenNum) {
 	char key[128];
-	sprintf(key, "%s.%d", clientIp, screenNum);
+	sprintf(key, "%s.%s", clientIp, screenNum);
 	string tty = properties->GetString(key);
 	if (tty == "") {
-		printf("%s.%d在绑定配置文件中没有设置！\r\n", clientIp, screenNum);
+		printf(ERROR_CAN_NOT_FOUND_CFG, clientIp, screenNum);
 		return -1;
 	}
 
@@ -135,11 +137,12 @@ int SocketRecv(int Socket, char *readStr, int readLen) {
 	return readLen;
 }
 
-int ReadScreenNumber(int socket) {
-	char num[4];
-	SocketRecv(socket, num, 4);
-	int n = (num[0] - '0') * 10 + (num[1] - '0');
-	return n;
+int ReadScreenNumber(int socket, char* screenNum) {
+	char num[12];
+	int len = recv(socket, num, 12, 0) - 2;
+	memcpy(screenNum, num+2, len);
+	screenNum[len] = 0;
+	return len;
 }
 
 void print_login_issue(const char *issue_file, const char *tty) {
@@ -154,7 +157,7 @@ void print_login_issue(const char *issue_file, const char *tty) {
 	uname(&uts);
 	//向前端显示信息
 	puts("\r"); /* start a new line */
-	printf("欢迎使用微卓终端仿真软件V2.0.1! 本终端tty名称为:%s\n", tty);
+	printf(LOG_SERVER_TITLE, tty);
 
 	fp = fopen(issue_file, "r");
 	if (!fp)
@@ -402,9 +405,13 @@ void ClientThread::Run() {
 	memset(clientIp, 0x00, 128);
 	sprintf(clientIp, "%s", inet_ntoa(clientAddress));
 
-	int screenNum = 0;
+	char screenNum[10];
 	if (needScreen) {
-		screenNum = ReadScreenNumber(socket);
+		char chr1[] = {0xff, 0xf1, 0x18, 0x00, 0x00, 0x00};
+		char chr2[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+		SocketSend(socket, chr1, 6);
+		ReadScreenNumber(socket, screenNum);
+		SocketSend(socket, chr2, 6);
 	}
 
 	if (this->ptyType == "unix98") {
@@ -414,7 +421,7 @@ void ClientThread::Run() {
 	}
 	if (ptyfd < 0) {
 		char send[128];
-		sprintf(send, "未找到空闲可用的tty设备(%s.%d:%s)!", clientIp, screenNum, ttyName);
+		sprintf(send, ERROR_CAN_NOT_FOUND_TTY, clientIp, screenNum, ttyName);
 		SocketSend(socket, send, strlen(send));
 		close(socket);
 		return;
@@ -507,7 +514,6 @@ void ClientThread::Run() {
 				count = 0;
 				memset(str, 0x00, 256);
 				if (FD_ISSET(socket,&rdfdset)) {
-					//printf("<1>从socket中读取数据\n");
 					memset(recvData, 0x00, 512);
 					count = socket_read(socket, recvData, 256); //向buf1中读入socket发来数据
 					memcpy(ptrBuf1, recvData, count);
@@ -542,13 +548,10 @@ void ClientThread::Run() {
 							break; //关闭当前连接
 						}
 					} else {
-						//printf("<3>向TTY中写入数据%s\n",ptr);
 						memcpy(LsStr, ptr + count, num_totty - count);
 						buf1Len = num_totty - count;
-						//memset(buf1,0x00,BUFSIZE);
 						memcpy(buf1, LsStr, buf1Len);
 						ptrBuf1 = buf1 + buf1Len;
-						//printf("写入pty后，buf1中的数据%s\n",buf1);
 					}
 				}
 				//判断socket是否可以写入数据，如果可以则把buf2写入socket
