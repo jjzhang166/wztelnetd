@@ -30,7 +30,7 @@ static const char fmtstr_d[] = "%A, %d %B %Y";
 static const char fmtstr_t[] = "%H:%M:%S";
 
 ClientThread::ClientThread() {
-	this->properties = NULL;
+	this->local = true;
 	this->socket = 0;
 	this->needScreen = true;
 	this->ptyType = "bsd";
@@ -47,14 +47,25 @@ void ClientThread::SetClientAddress(struct in_addr address) {
 	this->clientAddress = address;
 }
 
-void ClientThread::SetTtyConfig(Properties* prop) {
-	this->properties = prop;
+void ClientThread::SetTtyMapFile(bool local, const char* file) {
+	strcpy(this->ttyMapFile, file);
+	this->local = local;
+}
+
+string ClientThread::FindTty(const string& name) {
+	Properties prop;
+	if (local){
+		prop.Load(this->ttyMapFile);
+	} else {
+		prop.LoadTable(this->ttyMapFile);
+	}
+	return prop.GetString(name);
 }
 
 int ClientThread::OpenPtmx(char* ttyName, char* clientIp, char* screenNum) {
 	char key[128];
 	sprintf(key, "%s.%s", clientIp, screenNum);
-	string tty = properties->GetString(key);
+	string tty = this->FindTty(key);
 	if (tty == "") {
 		printf(ERROR_CAN_NOT_FOUND_CFG, clientIp, screenNum);
 		return -1;
@@ -74,7 +85,7 @@ int ClientThread::OpenPtmx(char* ttyName, char* clientIp, char* screenNum) {
 int ClientThread::OpenPty(char* ttyName, char* clientIp, char* screenNum) {
 	char key[128];
 	sprintf(key, "%s.%s", clientIp, screenNum);
-	string tty = properties->GetString(key);
+	string tty = this->FindTty(key);
 	if (tty == "") {
 		printf(ERROR_CAN_NOT_FOUND_CFG, clientIp, screenNum);
 		return -1;
@@ -405,7 +416,7 @@ void ClientThread::Run() {
 	memset(clientIp, 0x00, 128);
 	sprintf(clientIp, "%s", inet_ntoa(clientAddress));
 
-	char screenNum[10];
+	char screenNum[10] = "\0";
 	if (needScreen) {
 		char chr1[] = {0xff, 0xf1, 0x18, 0x00, 0x00, 0x00};
 		char chr2[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -507,7 +518,7 @@ void ClientThread::Run() {
 				memset(shell, 0x00, 128);
 				sprintf(shell, "fuser -k %s", ttyName);
 				ShellExecute(shell);
-				exit(0);
+				//exit(0);
 			} else {
 				//有读写数据
 				//判断sokcket是否有可读数据，如果有则把数据读出放入buf1
@@ -572,14 +583,10 @@ void ClientThread::Run() {
 				}
 			}
 		}
-		//交互完成后把login子进程kill掉
 		kill(shell_pid, SIGKILL);
 		waitpid(shell_pid, NULL, 0);
-		//关闭当前的pty号
 		close(ttyfd);
-		//关闭当前的tty号
 		close(ptyfd);
-		//关闭socket连接
 		close(socket);
 	} else if (pid < 0) {
 		//创建子进程失败

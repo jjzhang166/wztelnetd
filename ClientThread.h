@@ -21,7 +21,8 @@ protected:
 	bool needScreen;
 	string ptyType;
 	struct in_addr clientAddress;
-	Properties* properties;
+	char ttyMapFile[1024];
+	bool local;
 
 	int OpenPty(char* ttyName, char* clientIp, char* screenNum);
 	int OpenPtmx(char* ttyName, char* clientIp, char* screenNum);
@@ -36,8 +37,10 @@ public:
 	void SetNeedScreen(bool need);
 	void SetType(const string& type);
 	void SetClientAddress(struct in_addr address);
-	void SetTtyConfig(Properties* prop);
+	void SetTtyMapFile(bool local, const char* file);
 	void SetClientSocket(int socket);
+private:
+	string FindTty(const string& name);
 };
 
 #endif /* CLIENTTHREAD_H_ */

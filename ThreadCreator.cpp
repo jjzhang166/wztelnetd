@@ -1,4 +1,5 @@
 #include "ThreadCreator.h"
+#include <stdio.h>
 
 ThreadCreator::ThreadCreator(Runnable* runnable) :
 		pid(0) {
@@ -20,7 +21,9 @@ ThreadCreator::~ThreadCreator(void) {
 
 void* ThreadFunction(void* pthread) {
 	ThreadCreator* creator = (ThreadCreator*) pthread;
+	printf("thread run %d", creator->GetHandle());
 	creator->GetRunnable()->Run();
+	printf("thread end %d", creator->GetHandle());
 	if (creator->AutoDestroy()) {
 		delete creator->GetRunnable();
 		delete creator;

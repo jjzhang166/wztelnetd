@@ -21,9 +21,10 @@ protected:
 	int port;
 	int count;
 	string type;
-	Properties* properties;
+	char ttyMapFile[1024];
 	bool needScreen;
 	string ptyType;
+	bool local;//使用实达（false）/汇金（true）配置
 
 public:
 	TerminalServer();
@@ -34,7 +35,7 @@ public:
 	void SetPort(int port);
 	void SetCount(int count);
 	void SetType(const string& type);
-	void SetTtyConfig(Properties* prop);
+	void SetTtyMapFile(bool local, const char* file);
 };
 
 #endif /* TERMINALSERVER_H_ */

@@ -15,4 +15,4 @@
 #define LOG_SERVER_MAP_FILE "绑定映射文件：%s\r\n"
 #define LOG_SERVER_PTY_TYPE "PTY设备类型：%s\r\n"
 
-#define LOG_SERVER_TITLE "欢迎使用微卓终端仿真软件V2.0.1! 本终端tty名称为:%s\n"
+#define LOG_SERVER_TITLE "欢迎使用汇金终端仿真软件V4.0.0! 本终端tty名称为:%s\n"

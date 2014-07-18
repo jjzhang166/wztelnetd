@@ -24,16 +24,14 @@ int main() {
 	printf(LOG_SERVER_PORT, port);
 	printf(LOG_SERVER_TTY_TYPE, type.c_str());
 
-	Properties ttys;
 	string ttymap = "";
-	if (config.GetString("maptype", "") == "star"){
+	bool huijincfg = config.GetString("maptype", "") != "star";
+	if (!huijincfg){
 		ttymap = config.GetString("ttymap", "/etc/stelnetd.conf");
 		printf(LOG_SERVER_SD_MAP_FILE, ttymap.c_str());
-		ttys.LoadTable(ttymap);
 	} else {
 		ttymap = config.GetString("ttymap", TELNET_CFG);
 		printf(LOG_SERVER_MAP_FILE, ttymap.c_str());
-		ttys.Load(ttymap);
 	}
 	printf(LOG_SERVER_PTY_TYPE, config.GetString("device").c_str());
 
@@ -41,7 +39,7 @@ int main() {
 	server.SetPort(port);
 	server.SetCount(count);
 	server.SetType(type);
-	server.SetTtyConfig(&ttys);
+	server.SetTtyMapFile(huijincfg, ttymap.c_str());
 	server.SetPtyType(config.GetString("device"));
 	server.SetNeedScreen(config.GetBoolean("screenNum"));
 

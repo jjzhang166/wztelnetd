@@ -18,8 +18,8 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#include "ClientThread.h"
 #include "ThreadCreator.h"
+#include "ClientThread.h"
 #include <string.h>
 #include "Messages.h"
 
@@ -33,14 +33,14 @@ TerminalServer::TerminalServer() {
 	this->port = 3231;
 	this->type = "vt100";
 	this->count = 256;
-	this->properties = NULL;
+	//this->properties = NULL;
 	this->needScreen = true;
 }
 
 TerminalServer::~TerminalServer() {
 }
 
-void TerminalServer::SetPort(int port){
+void TerminalServer::SetPort(int port) {
 	this->port = port;
 }
 
@@ -64,8 +64,9 @@ int close_on_exec_on(int fd) {
 	return fcntl(fd, F_SETFD, FD_CLOEXEC);
 }
 
-void TerminalServer::SetTtyConfig(Properties* prop) {
-	this->properties = prop;
+void TerminalServer::SetTtyMapFile(bool local, const char* file) {
+	strcpy(ttyMapFile, file);
+	this->local = local;
 }
 
 void TerminalServer::Run() {
@@ -112,7 +113,7 @@ void TerminalServer::Run() {
 		client->SetNeedScreen(this->needScreen);
 		client->SetClientSocket(new_fd);
 		client->SetClientAddress(their_addr.sin_addr);
-		client->SetTtyConfig(this->properties);
+		client->SetTtyMapFile(local, this->ttyMapFile);
 		ThreadCreator::StartThread(client);
 	}
 }
