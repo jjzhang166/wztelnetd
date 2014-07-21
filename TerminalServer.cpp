@@ -33,8 +33,8 @@ TerminalServer::TerminalServer() {
 	this->port = 3231;
 	this->type = "vt100";
 	this->count = 256;
-	//this->properties = NULL;
 	this->needScreen = true;
+	this->local = true;
 }
 
 TerminalServer::~TerminalServer() {
