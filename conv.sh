@@ -9,9 +9,9 @@ else
 fi
 
 function encode() {
-	echo "iconv -f $F -t $T $1 > tmp"
-	echo "cat tmp > $1"
-	echo "rm tmp"
+	iconv -f $F -t $T $1 > tmp
+	cat tmp > $1
+	rm tmp
 }
 
 encode Messages.h
