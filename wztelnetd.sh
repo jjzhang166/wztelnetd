@@ -42,31 +42,31 @@ COMMAND="$1"; shift
 case "$COMMAND" in
     start)
 		[ -n "$TELNETD_PID" ] && {
-			echo "�󶨷������Ѿ������� $TELNETD_PID." 1>&2
+			echo "绑定服务在已经启动： $TELNETD_PID." 1>&2
 			exit 1
 		}
 		touch "$PIDFILE" || {
-			echo "�������̺��ļ�ʧ�ܣ�'$PIDFILE'" 1>&2
+			echo "创建进程号文件失败！'$PIDFILE'" 1>&2
 			exit 1
 		}
 		nohup sh -c "echo "'$$'" > '$PIDFILE' && exec /sbin/wztelnetd" >> "$LOGFILE" 2>&1 &
-		echo "�󶨷���ɹ�������"
+		echo "绑定服务成功启动！"
 		exit 0
 	;;
 	stop)
 		[ -n "$TELNETD_PID" ] || {
-		    echo "û�м�⵽�������еİ󶨷���." 1>&2
+		    echo "没有检测到正在运行的绑定服务." 1>&2
 		    exit 0
 		}
 		kill "$TELNETD_PID" > /dev/null 2>&1 && {
-		    echo "���棺�󶨷����������У�" 1>&2
+		    echo "警告：绑定服务仍在运行！" 1>&2
 		    exit 0
 		}
 		rm -f "$PIDFILE" || {
-		    echo "�޷�ɾ�����̺��ļ��� '$PIDFILE'" 1>&2
+		    echo "无法删除进程号文件： '$PIDFILE'" 1>&2
 		    exit 1
 		}
-		echo "����ɹ�ֹͣ��"
+		echo "服务成功停止！"
 		exit 0
 	;;
 esac
