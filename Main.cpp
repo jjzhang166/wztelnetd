@@ -18,15 +18,15 @@ int main() {
 	Properties config;
 	config.Load(TELNET_CFG);
 	printf(LOG_SERVER_CFG_FILE, TELNET_CFG);
-	int port = config.GetInteger("port", 3231);
+	int port = config.GetInteger("port", 3232);
 	int count = config.GetInteger("maxcount", 256);
 	string type = config.GetString("vttype", "vt100");
 	printf(LOG_SERVER_PORT, port);
 	printf(LOG_SERVER_TTY_TYPE, type.c_str());
 
 	string ttymap = "";
-	bool huijincfg = config.GetString("maptype", "") != "star";
-	if (!huijincfg){
+	bool simplecfg = config.GetString("maptype", "") != "star";
+	if (!simplecfg){
 		ttymap = config.GetString("ttymap", "/etc/stelnetd.conf");
 		printf(LOG_SERVER_SD_MAP_FILE, ttymap.c_str());
 	} else {
@@ -39,7 +39,7 @@ int main() {
 	server.SetPort(port);
 	server.SetCount(count);
 	server.SetType(type);
-	server.SetTtyMapFile(huijincfg, ttymap.c_str());
+	server.SetTtyMapFile(simplecfg, ttymap.c_str());
 	server.SetPtyType(config.GetString("device"));
 	server.SetNeedScreen(config.GetBoolean("screenNum"));
 

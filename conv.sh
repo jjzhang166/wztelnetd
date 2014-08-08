@@ -9,6 +9,7 @@ else
 fi
 
 function encode() {
+	echo $F -\> $T - $1
 	iconv -f $F -t $T $1 > tmp
 	cat tmp > $1
 	rm tmp
