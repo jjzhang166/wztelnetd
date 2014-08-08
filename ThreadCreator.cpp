@@ -3,14 +3,12 @@
 
 ThreadCreator::ThreadCreator(Runnable* runnable) :
 		pid(0) {
-	this->handle = 0;
 	this->runnable = runnable;
 	this->autoDestroy = false;
 }
 
 ThreadCreator::ThreadCreator(Runnable* runnable, bool autoDestroy) :
 		pid(0) {
-	this->handle = 0;
 	this->runnable = runnable;
 	this->autoDestroy = autoDestroy;
 }
@@ -21,9 +19,7 @@ ThreadCreator::~ThreadCreator(void) {
 
 void* ThreadFunction(void* pthread) {
 	ThreadCreator* creator = (ThreadCreator*) pthread;
-	printf("thread run %d", creator->GetHandle());
 	creator->GetRunnable()->Run();
-	printf("thread end %d", creator->GetHandle());
 	if (creator->AutoDestroy()) {
 		delete creator->GetRunnable();
 		delete creator;
@@ -40,13 +36,13 @@ bool ThreadCreator::AutoDestroy() {
 }
 
 int ThreadCreator::Start() {
-	this->handle = pthread_create(&pid, (const pthread_attr_t*) 0,
+	pthread_create(&pid, (const pthread_attr_t*) 0,
 			ThreadFunction, (void*) this);
-	return this->handle;
+	return pid;
 }
 
-int ThreadCreator::GetHandle() {
-	return this->handle;
+unsigned long ThreadCreator::GetHandle() {
+	return this->pid;
 }
 
 ThreadCreator* ThreadCreator::StartThread(Runnable* runnable) {

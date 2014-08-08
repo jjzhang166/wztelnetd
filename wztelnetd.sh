@@ -55,11 +55,11 @@ case "$COMMAND" in
 	;;
 	stop)
 		[ -n "$TELNETD_PID" ] || {
-		    echo "没有检测到正在运行的绑定服务." 1>&2
+		    echo "没有检测到正在运行的绑定服务。该服务已经关闭." 1>&2
 		    exit 0
 		}
 		kill "$TELNETD_PID" > /dev/null 2>&1 && {
-		    echo "警告：绑定服务仍在运行！" 1>&2
+		    echo "警告：绑定服务仍在运行！请重新尝试关闭！" 1>&2
 		    exit 0
 		}
 		rm -f "$PIDFILE" || {

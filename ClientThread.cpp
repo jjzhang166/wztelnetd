@@ -54,7 +54,7 @@ void ClientThread::SetTtyMapFile(bool local, const char* file) {
 
 string ClientThread::FindTty(const string& name) {
 	Properties prop;
-	if (local){
+	if (local) {
 		prop.Load(this->ttyMapFile);
 	} else {
 		prop.LoadTable(this->ttyMapFile);
@@ -82,6 +82,11 @@ int ClientThread::OpenPtmx(char* ttyName, char* clientIp, char* screenNum) {
 	return p;
 }
 
+void ShellExecute(char *shell) {
+	FILE *fp = popen(shell, "r");
+	pclose(fp);
+}
+
 int ClientThread::OpenPty(char* ttyName, char* clientIp, char* screenNum) {
 	char key[128];
 	sprintf(key, "%s.%s", clientIp, screenNum);
@@ -93,6 +98,11 @@ int ClientThread::OpenPty(char* ttyName, char* clientIp, char* screenNum) {
 
 	sprintf(ttyName, "/dev/%s", tty.c_str());
 	ttyName[5] = 't';
+
+//	char shell[128];
+//	memset(shell, 0x00, 128);
+//	sprintf(shell, "fuser -k %s", ttyName);
+//	ShellExecute(shell);
 
 	char ptyName[128];
 	strcpy(ptyName, ttyName);
@@ -107,11 +117,6 @@ int ClientThread::OpenPty(char* ttyName, char* clientIp, char* screenNum) {
 		return p;
 	}
 	return -1;
-}
-
-void ShellExecute(char *shell) {
-	FILE *fp = popen(shell, "r");
-	pclose(fp);
 }
 
 //发送数据
@@ -151,7 +156,7 @@ int SocketRecv(int Socket, char *readStr, int readLen) {
 int ReadScreenNumber(int socket, char* screenNum) {
 	char num[12];
 	int len = recv(socket, num, 12, 0) - 2;
-	memcpy(screenNum, num+2, len);
+	memcpy(screenNum, num + 2, len);
 	screenNum[len] = 0;
 	return len;
 }
@@ -228,18 +233,50 @@ void print_login_issue(const char *issue_file, const char *tty) {
 	fflush(NULL);
 }
 
-ssize_t safe_read(int fd, void *buf, size_t count) {
+ssize_t safe_read_ptyfd(int fd, void *buf, size_t count) {
 	ssize_t n;
 	do {
 		n = read(fd, buf, count);
-	} while (n < 0 && errno == EINTR);
+		if (n < 0) {
+			if (errno == EIO) {
+				continue;
+			}
+			if (errno == EINTR) {
+				printf("errno: %d\r\n", errno);
+				continue;
+			}
+			if (errno == EAGAIN) {
+				continue;
+			}
+		}
+		break;
+	} while (true);
+
+	if (n < 0) {
+		printf("errno: %d\r\n", errno);
+	}
+
 	return n;
 }
-ssize_t socket_read(int fd, void *buf, size_t bufLen) {
+ssize_t safe_read_socket(int fd, void *buf, size_t count) {
 	ssize_t n;
 	do {
-		n = recv(fd, buf, bufLen, 0);
-	} while (n < 0 && errno == EINTR);
+		n = read(fd, buf, count);
+		if (n < 0) {
+			if (errno == EINTR) {
+				printf("errno: %d\r\n", errno);
+				continue;
+			}
+			if (errno == EAGAIN) {
+				continue;
+			}
+		}
+		break;
+	} while (true);
+
+	if (n < 0) {
+		printf("errno: %d\r\n", errno);
+	}
 
 	return n;
 }
@@ -364,14 +401,6 @@ size_t iac_safe_write(int fd, const char *buf, size_t count) {
 	return total + rc;
 }
 
-//void sig_int(int sig) {
-//	char shell[128];
-//	sprintf(shell, "fuser -k %s", ttyName);
-//	ShellExecute(shell);
-//	exit(0);
-//	return;
-//}
-
 void ClientThread::Run() {
 	char str[256];
 	int pid = 0;
@@ -382,7 +411,7 @@ void ClientThread::Run() {
 	char recvData[512];
 	char shell[128];
 
-	int keepAlive = 1; //设定KeepAlive
+	int keepAlive = 1; //设定KeepAlive=1
 	int keepIdle = 100; //开始首次KeepAlive探测前的TCP空闭时间
 	int keepInterval = 500; //两次KeepAlive探测间的时间间隔
 	int keepCount = 3; //判定断开前的KeepAlive探测次数
@@ -392,7 +421,7 @@ void ClientThread::Run() {
 	int ptyfd = 0;
 	int ttyfd = 0;
 
-	pid_t shell_pid;
+	pid_t sonPid;
 
 	char ttyName[128];
 
@@ -418,8 +447,8 @@ void ClientThread::Run() {
 
 	char screenNum[10] = "\0";
 	if (needScreen) {
-		char chr1[] = {0xff, 0xf1, 0x18, 0x00, 0x00, 0x00};
-		char chr2[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+		char chr1[] = { 0xff, 0xf1, 0x18, 0x00, 0x00, 0x00 };
+		char chr2[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 		SocketSend(socket, chr1, 6);
 		ReadScreenNumber(socket, screenNum);
 		SocketSend(socket, chr2, 6);
@@ -430,6 +459,7 @@ void ClientThread::Run() {
 	} else {
 		ptyfd = OpenPty(ttyName, clientIp, screenNum);
 	}
+
 	if (ptyfd < 0) {
 		char send[128];
 		sprintf(send, ERROR_CAN_NOT_FOUND_TTY, clientIp, screenNum, ttyName);
@@ -437,6 +467,10 @@ void ClientThread::Run() {
 		close(socket);
 		return;
 	}
+
+	printf("ttyname:'%s', client:'%s', screen:'%s'\r\n", ttyName, clientIp,
+			screenNum);
+
 	fcntl(ptyfd, F_SETFL, fcntl(ptyfd, F_GETFL) | O_NONBLOCK);
 	fcntl(ptyfd, F_SETFD, FD_CLOEXEC);
 
@@ -458,9 +492,9 @@ void ClientThread::Run() {
 	SocketSend(socket, iacs_to_send, sizeof(iacs_to_send));
 
 	fflush(NULL);
-	::signal(SIGPIPE, SIG_IGN ); //忽略socket错误产生的SIGPIPE信号,防止进程异常退出
-	::signal(SIGCHLD, SIG_IGN ); //忽略子进程退出信号
-	::signal(SIGSEGV, SIG_IGN ); //另一端断开
+	::signal(SIGPIPE, SIG_IGN); //忽略socket错误产生的SIGPIPE信号,防止进程异常退出
+	::signal(SIGCHLD, SIG_IGN); //忽略子进程退出信号
+	::signal(SIGSEGV, SIG_IGN); //另一端断开
 	//::signal(SIGSEGV, &sig_int); //另一端断开
 	pid = fork(); /* NOMMU-friendly */
 	if (pid > 0) {
@@ -469,7 +503,7 @@ void ClientThread::Run() {
 
 		buf1Len = 0;
 		buf2Len = 0;
-		shell_pid = pid;
+		sonPid = pid;
 		while (1) {
 			FD_ZERO(&rdfdset);
 			FD_ZERO(&wrfdset);
@@ -509,37 +543,35 @@ void ClientThread::Run() {
 			count = select(fdMax + 1, &rdfdset, &wrfdset, NULL, &timeout);
 			if (count == 0) {
 				continue;
-			} else if (count <= 0) {
-				kill(shell_pid, SIGKILL);
-				waitpid(shell_pid, NULL, 0);
+			} else if (count < 0) {
+				kill(sonPid, SIGKILL);
+				waitpid(sonPid, NULL, 0);
 				close(ttyfd);
 				close(ptyfd);
 				close(socket);
 				memset(shell, 0x00, 128);
 				sprintf(shell, "fuser -k %s", ttyName);
 				ShellExecute(shell);
-				//exit(0);
 			} else {
-				//有读写数据
-				//判断sokcket是否有可读数据，如果有则把数据读出放入buf1
 				count = 0;
 				memset(str, 0x00, 256);
-				if (FD_ISSET(socket,&rdfdset)) {
+				if (FD_ISSET(socket, &rdfdset)) {
 					memset(recvData, 0x00, 512);
-					count = socket_read(socket, recvData, 256); //向buf1中读入socket发来数据
+					count = safe_read_socket(socket, recvData, 256); //向buf1中读入socket发来数据
 					memcpy(ptrBuf1, recvData, count);
-					if (count <= 0) {
+					if (count < 0) {
+						printf("read from socket error!\r\n");
 						break; //关闭当前连接
 					} else {
 						ptrBuf1 = ptrBuf1 + count;
 						buf1Len = buf1Len + count;
 					}
 				}
-
 				count = 0;
-				if (FD_ISSET(ptyfd,&rdfdset)) {
-					count = safe_read(ptyfd, ptrBuf2, 256);
-					if (count <= 0) {
+				if (FD_ISSET(ptyfd, &rdfdset)) {
+					count = safe_read_ptyfd(ptyfd, ptrBuf2, 256);
+					if (count < 0) {
+						printf("read from ptyfd error!\r\n", count);
 						break; //关闭当前连接
 					} else {
 						ptrBuf2 = ptrBuf2 + count;
@@ -556,6 +588,7 @@ void ClientThread::Run() {
 					if (count < 0) {
 						if (errno != EAGAIN) //应用程序现在没有数据可写请稍后再试
 						{
+							printf("write to ptyfd error!\r\n");
 							break; //关闭当前连接
 						}
 					} else {
@@ -572,6 +605,7 @@ void ClientThread::Run() {
 					if (count < 0) {
 						if (errno != EAGAIN) //如果不能写入，则继续下一步检查
 						{
+							printf("write to socket error!\r\n");
 							break; //关闭当前连接
 						}
 					} else {
@@ -583,13 +617,8 @@ void ClientThread::Run() {
 				}
 			}
 		}
-		kill(shell_pid, SIGKILL);
-		waitpid(shell_pid, NULL, 0);
-		close(ttyfd);
-		close(ptyfd);
-		close(socket);
-	} else if (pid < 0) {
-		//创建子进程失败
+		kill(sonPid, SIGKILL);
+		waitpid(sonPid, NULL, 0);
 		close(ttyfd);
 		close(ptyfd);
 		close(socket);
@@ -616,6 +645,11 @@ void ClientThread::Run() {
 		char login[] = "/bin/login";
 		char *login_argv[2] = { login, NULL };
 		execvp("/bin/login", (char **) login_argv);
+	} else if (pid < 0) {
+		printf("create process error: %d\r\n", pid);
+		close(ttyfd);
+		close(ptyfd);
+		close(socket);
 	}
 }
 

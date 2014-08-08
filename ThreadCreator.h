@@ -7,7 +7,6 @@
 class ThreadCreator {
 private:
 	Runnable* runnable;
-	int handle;
 	bool autoDestroy;
 	pthread_t pid;
 
@@ -18,7 +17,7 @@ public:
 
 	int Start();
 
-	int GetHandle();
+	unsigned long GetHandle();
 
 	void Wait();
 

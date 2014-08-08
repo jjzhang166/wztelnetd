@@ -31,4 +31,6 @@ start:
 stop:
 	service wztelnetd stop
 
+rebuild: stop uninstall $(target) install start
+
 .PHONY: all clean install uninstall
