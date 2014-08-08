@@ -1,4 +1,5 @@
-#pragma once
+#ifndef THREADCREATER_H_
+#define THREADCREATER_H_
 
 #include "Runnable.h"
 #include <pthread.h>
@@ -28,3 +29,4 @@ public:
 
 };
 
+#endif

@@ -1,4 +1,6 @@
-#pragma once
+#ifndef RUNNABLE_H_
+#define RUNNABLE_H_
+
 class Runnable {
 public:
 	Runnable(void);
@@ -7,3 +9,4 @@ public:
 	virtual void Run() = 0;
 };
 
+#endif

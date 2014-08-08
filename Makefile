@@ -10,7 +10,6 @@ clean:
 	rm -f $(target)
 
 install:
-	cp stelnetd.conf /etc/
 	cp wztelnetd.cfg /etc/
 	cp wztelnetd.sh  /etc/init.d/wztelnetd
 	cp wztelnetd     /sbin/
@@ -20,7 +19,6 @@ install:
 	/sbin/chkconfig --list | grep wztelnetd
 
 uninstall:
-	rm -f /etc/stelnetd.conf
 	rm -f /etc/wztelnetd.cfg
 	rm -f /etc/init.d/wztelnetd
 	rm -f /sbin/wztelnetd

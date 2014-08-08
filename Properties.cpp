@@ -15,12 +15,9 @@ using namespace std;
 #define MAX_LINE_LENGTH 4096
 
 Properties::Properties() {
-	// TODO Auto-generated constructor stub
-
 }
 
 Properties::~Properties() {
-	// TODO Auto-generated destructor stub
 }
 
 string Properties::Get(const string& name, const string& def) {
