@@ -99,11 +99,6 @@ int ClientThread::OpenPty(char* ttyName, char* clientIp, char* screenNum) {
 	sprintf(ttyName, "/dev/%s", tty.c_str());
 	ttyName[5] = 't';
 
-//	char shell[128];
-//	memset(shell, 0x00, 128);
-//	sprintf(shell, "fuser -k %s", ttyName);
-//	ShellExecute(shell);
-
 	char ptyName[128];
 	strcpy(ptyName, ttyName);
 	ptyName[5] = 'p';
@@ -233,21 +228,20 @@ void print_login_issue(const char *issue_file, const char *tty) {
 	fflush(NULL);
 }
 
-ssize_t safe_read_ptyfd(int fd, void *buf, size_t count) {
+ssize_t safe_read_ptyfd(int fd, void *buf, size_t count, pid_t sonPid,
+		int ttyfd, int ptyfd, int socket) {
 	ssize_t n;
-	/**
-	 * 计数器，当出现大于10次的读取错误，则认为后台进程退出。
-	 */
-	static int errcount = 0;
 	do {
 		n = read(fd, buf, count);
 		if (n < 0) {
 			if (errno == EIO) {
-//				if (n == -1 && errcount++ > 10) {
-//					break;
-//				} else {
-//					printf("|%d,%d", n, errno);
-//				}
+				kill(sonPid, 0);
+				if (errno == ESRCH) {
+					close(ttyfd);
+					close(ptyfd);
+					close(socket);
+					break;
+				}
 				continue;
 			}
 			if (errno == EINTR) {
@@ -256,13 +250,9 @@ ssize_t safe_read_ptyfd(int fd, void *buf, size_t count) {
 			if (errno == EAGAIN) {
 				continue;
 			}
-		} else if (n > 0) {
-			errcount = 0;
 		}
 		break;
 	} while (true);
-
-
 	return n;
 }
 ssize_t safe_read_socket(int fd, void *buf, size_t count) {
@@ -474,6 +464,7 @@ void ClientThread::Run() {
 
 	printf("ttyname:'%s', client:'%s', screen:'%s'\r\n", ttyName, clientIp,
 			screenNum);
+	fflush(NULL);
 
 	fcntl(ptyfd, F_SETFL, fcntl(ptyfd, F_GETFL) | O_NONBLOCK);
 	fcntl(ptyfd, F_SETFD, FD_CLOEXEC);
@@ -495,11 +486,9 @@ void ClientThread::Run() {
 
 	SocketSend(socket, iacs_to_send, sizeof(iacs_to_send));
 
-	fflush(NULL);
 	::signal(SIGPIPE, SIG_IGN); //忽略socket错误产生的SIGPIPE信号,防止进程异常退出
-	::signal(SIGCHLD, SIG_IGN); //忽略子进程退出信号
 	::signal(SIGSEGV, SIG_IGN); //另一端断开
-	//::signal(SIGSEGV, &sig_int); //另一端断开
+	::signal(SIGCHLD, SIG_IGN); //子进程退出信号处理
 	pid = fork(); /* NOMMU-friendly */
 	if (pid > 0) {
 		FD_ZERO(&rdfdset);
@@ -509,6 +498,7 @@ void ClientThread::Run() {
 		buf2Len = 0;
 		sonPid = pid;
 		while (1) {
+
 			FD_ZERO(&rdfdset);
 			FD_ZERO(&wrfdset);
 
@@ -562,14 +552,12 @@ void ClientThread::Run() {
 				ShellExecute(shell);
 				break;
 			} else {
-				fflush(NULL);
 				count = 0;
 				memset(str, 0x00, 256);
 				if (FD_ISSET(socket, &rdfdset)) {
 					memset(recvData, 0x00, 512);
 					count = safe_read_socket(socket, recvData, 256); //向buf1中读入socket发来数据
 					if (count < 0) {
-						printf("read from socket error!\r\n");
 						break;
 					} else if (count == 0) {
 						break;
@@ -581,9 +569,9 @@ void ClientThread::Run() {
 				}
 				count = 0;
 				if (FD_ISSET(ptyfd, &rdfdset)) {
-					count = safe_read_ptyfd(ptyfd, ptrBuf2, 256);
+					count = safe_read_ptyfd(ptyfd, ptrBuf2, 256, sonPid, ttyfd,
+							ptyfd, socket);
 					if (count < 0) {
-						printf("read from ptyfd error!\r\n", count);
 						break; //关闭当前连接
 					} else {
 						ptrBuf2 = ptrBuf2 + count;
@@ -600,7 +588,6 @@ void ClientThread::Run() {
 					if (count < 0) {
 						if (errno != EAGAIN) //应用程序现在没有数据可写请稍后再试
 						{
-							printf("write to ptyfd error!\r\n");
 							break; //关闭当前连接
 						}
 					} else {
@@ -617,7 +604,6 @@ void ClientThread::Run() {
 					if (count < 0) {
 						if (errno != EAGAIN) //如果不能写入，则继续下一步检查
 						{
-							printf("write to socket error!\r\n");
 							break; //关闭当前连接
 						}
 					} else {
@@ -634,7 +620,6 @@ void ClientThread::Run() {
 		close(ttyfd);
 		close(ptyfd);
 		close(socket);
-		fflush(NULL);
 	} else if (pid == 0) { //子进程开始执行
 		setenv("TERM", this->type.c_str(), 1);
 		setsid();

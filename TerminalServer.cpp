@@ -100,6 +100,7 @@ void TerminalServer::Run() {
 		return;
 	}
 
+	fflush(NULL);
 	while (1) {
 		sin_size = sizeof(struct sockaddr_in);
 		if ((new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size))
