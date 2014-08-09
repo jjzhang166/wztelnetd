@@ -109,12 +109,22 @@ void TerminalServer::Run() {
 		}
 		close_on_exec_on(new_fd);
 
-		ClientThread *client = new ClientThread();
-		client->SetPtyType(this->ptyType);
-		client->SetNeedScreen(this->needScreen);
-		client->SetClientSocket(new_fd);
-		client->SetClientAddress(their_addr.sin_addr);
-		client->SetTtyMapFile(local, this->ttyMapFile);
-		ThreadCreator::StartThread(client);
+		pid_t pid = fork();
+		if (pid > 0) {
+			close(new_fd);
+			continue;
+		} else if (pid == 0) {
+			close(sockfd);
+			ClientThread client;
+			client.SetPtyType(this->ptyType);
+			client.SetNeedScreen(this->needScreen);
+			client.SetClientSocket(new_fd);
+			client.SetClientAddress(their_addr.sin_addr);
+			client.SetTtyMapFile(local, this->ttyMapFile);
+			client.Run();
+			exit(0);
+		} else {
+			continue;
+		}
 	}
 }
