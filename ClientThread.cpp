@@ -31,7 +31,7 @@ static const char fmtstr_t[] = "%H:%M:%S";
 
 ClientThread::ClientThread() {
 	this->local = true;
-	this->socket = 0;
+	this->clientSocket = 0;
 	this->needScreen = true;
 	this->ptyType = "bsd";
 }
@@ -40,7 +40,7 @@ ClientThread::~ClientThread() {
 }
 
 void ClientThread::SetClientSocket(int socket) {
-	this->socket = socket;
+	this->clientSocket = socket;
 }
 
 void ClientThread::SetClientAddress(struct in_addr address) {
@@ -441,9 +441,9 @@ void ClientThread::Run() {
 	if (needScreen) {
 		char chr1[] = { 0xff, 0xf1, 0x18, 0x00, 0x00, 0x00 };
 		char chr2[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-		SocketSend(socket, chr1, 6);
-		ReadScreenNumber(socket, screenNum);
-		SocketSend(socket, chr2, 6);
+		SocketSend(clientSocket, chr1, 6);
+		ReadScreenNumber(clientSocket, screenNum);
+		SocketSend(clientSocket, chr2, 6);
 	}
 
 	if (this->ptyType == "unix98") {
@@ -455,8 +455,8 @@ void ClientThread::Run() {
 	if (ptyfd < 0) {
 		char send[128];
 		sprintf(send, ERROR_CAN_NOT_FOUND_TTY, clientIp, screenNum, ttyName);
-		SocketSend(socket, send, strlen(send));
-		close(socket);
+		SocketSend(clientSocket, send, strlen(send));
+		close(clientSocket);
 		return;
 	}
 
@@ -464,21 +464,21 @@ void ClientThread::Run() {
 	fcntl(ptyfd, F_SETFD, FD_CLOEXEC);
 
 	//<2>设置socket状态,保持长连接  // 设置KeepAlive参数
-	if (setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, (void*) &keepAlive,
+	if (setsockopt(clientSocket, SOL_SOCKET, SO_KEEPALIVE, (void*) &keepAlive,
 			sizeof(keepAlive)) == -1) {
 	}
-	if (setsockopt(socket, SOL_TCP, TCP_KEEPIDLE, (void *) &keepIdle,
+	if (setsockopt(clientSocket, SOL_TCP, TCP_KEEPIDLE, (void *) &keepIdle,
 			sizeof(keepIdle)) == -1) {
 	}
-	if (setsockopt(socket, SOL_TCP, TCP_KEEPINTVL, (void *) &keepInterval,
+	if (setsockopt(clientSocket, SOL_TCP, TCP_KEEPINTVL, (void *) &keepInterval,
 			sizeof(keepInterval)) == -1) {
 	}
-	if (setsockopt(socket, SOL_TCP, TCP_KEEPCNT, (void *) &keepCount,
+	if (setsockopt(clientSocket, SOL_TCP, TCP_KEEPCNT, (void *) &keepCount,
 			sizeof(keepCount)) == -1) {
 	}
-	fcntl(socket, F_SETFL, fcntl(socket, F_GETFL) | O_NONBLOCK);
+	fcntl(clientSocket, F_SETFL, fcntl(clientSocket, F_GETFL) | O_NONBLOCK);
 
-	SocketSend(socket, iacs_to_send, sizeof(iacs_to_send));
+	SocketSend(clientSocket, iacs_to_send, sizeof(iacs_to_send));
 
 	::signal(SIGPIPE, SIG_IGN); //忽略socket错误产生的SIGPIPE信号,防止进程异常退出
 	::signal(SIGSEGV, SIG_IGN); //另一端断开
@@ -504,15 +504,15 @@ void ClientThread::Run() {
 				}
 			}
 			if (buf2Len > 0) {
-				FD_SET(socket, &wrfdset);
-				if (socket > fdMax) {
-					fdMax = socket;
+				FD_SET(clientSocket, &wrfdset);
+				if (clientSocket > fdMax) {
+					fdMax = clientSocket;
 				}
 			}
 			if (buf1Len < BUFSIZE) {
-				FD_SET(socket, &rdfdset);
-				if (socket > fdMax) {
-					fdMax = socket;
+				FD_SET(clientSocket, &rdfdset);
+				if (clientSocket > fdMax) {
+					fdMax = clientSocket;
 				}
 			}
 			if (buf2Len < BUFSIZE) {
@@ -541,9 +541,9 @@ void ClientThread::Run() {
 			} else {
 				count = 0;
 				memset(str, 0x00, 256);
-				if (FD_ISSET(socket, &rdfdset)) {
+				if (FD_ISSET(clientSocket, &rdfdset)) {
 					memset(recvData, 0x00, 512);
-					count = safe_read_socket(socket, recvData, 256); //向buf1中读入socket发来数据
+					count = safe_read_socket(clientSocket, recvData, 256); //向buf1中读入socket发来数据
 					if (count < 0) {
 						printf("0");
 						fflush(NULL);
@@ -595,8 +595,8 @@ void ClientThread::Run() {
 				}
 				//判断socket是否可以写入数据，如果可以则把buf2写入socket
 				count = 0;
-				if ((FD_ISSET(socket, &wrfdset)) && (buf2Len > 0)) {
-					count = iac_safe_write(socket, (char *) buf2, buf2Len);
+				if ((FD_ISSET(clientSocket, &wrfdset)) && (buf2Len > 0)) {
+					count = iac_safe_write(clientSocket, (char *) buf2, buf2Len);
 					if (count < 0) {
 						if (errno != EAGAIN) //如果不能写入，则继续下一步检查
 						{
@@ -617,7 +617,7 @@ void ClientThread::Run() {
 		waitpid(sonPid, NULL, 0);
 		close(ttyfd);
 		close(ptyfd);
-		close(socket);
+		close(clientSocket);
 	} else if (pid == 0) { //子进程开始执行
 		setenv("TERM", this->type.c_str(), 1);
 		setsid();
@@ -646,7 +646,7 @@ void ClientThread::Run() {
 		fflush(NULL);
 		close(ttyfd);
 		close(ptyfd);
-		close(socket);
+		close(clientSocket);
 	}
 }
 

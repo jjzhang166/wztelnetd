@@ -16,7 +16,7 @@
 
 class ClientThread: public Runnable {
 protected:
-	int socket;
+	int clientSocket;
 	string type;
 	bool needScreen;
 	string ptyType;
