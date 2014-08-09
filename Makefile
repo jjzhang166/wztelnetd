@@ -10,32 +10,33 @@ clean:
 	rm -f $(target)
 
 install:
-	cp wztelnetd.cfg /etc/
-	cp wztelnetd.sh  /etc/init.d/wztelnetd
-	cp wztelnetd     /sbin/
-	chmod +x /etc/init.d/wztelnetd
-	chmod +x /sbin/wztelnetd
-	/sbin/chkconfig --add wztelnetd
-	/sbin/chkconfig --list | grep wztelnetd
+	cp $(target).cfg /etc/
+	cp $(target).sh  /etc/init.d/$(target)
+	cp $(target)     /sbin/
+	chmod +x /etc/init.d/$(target)
+	chmod +x /sbin/$(target)
+	/sbin/chkconfig --add $(target)
+	/sbin/chkconfig --list | grep $(target)
 
 uninstall:
-	rm -f /etc/wztelnetd.cfg
-	rm -f /etc/init.d/wztelnetd
-	rm -f /sbin/wztelnetd
-	rm -f /var/log/wztelnetd.log
-	rm -f /var/run/wztelnetd.pid
-	
+	rm -f /etc/$(target).cfg
+	rm -f /etc/init.d/$(target)
+	rm -f /sbin/$(target)
+	rm -f /var/log/$(target).log
+	rm -f /var/run/$(target).pid
+
+#	ngcbs yjdlzyyd
 start:
-	service wztelnetd start
+	service $(target) start
 
 stop:
-	service wztelnetd stop
+	service $(target) stop
 	
 enable:
-	chkconfig wztelnetd on
+	chkconfig $(target) on
 	
 disable:
-	chkconfig wztelnetd off
+	chkconfig $(target) off
 
 
 rebuild: stop uninstall $(target) install start
