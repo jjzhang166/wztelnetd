@@ -30,6 +30,13 @@ start:
 
 stop:
 	service wztelnetd stop
+	
+enable:
+	chkconfig wztelnetd on
+	
+disable:
+	chkconfig wztelnetd off
+
 
 rebuild: stop uninstall $(target) install start
 
