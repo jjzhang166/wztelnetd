@@ -17,7 +17,6 @@ using namespace std;
 
 class TerminalServer: public Runnable {
 protected:
-	virtual void Run();
 	int port;
 	int count;
 	string type;
@@ -29,6 +28,8 @@ protected:
 public:
 	TerminalServer();
 	virtual ~TerminalServer();
+
+	virtual void Run();
 
 	void SetNeedScreen(bool need);
 	void SetPtyType(const string& pty);

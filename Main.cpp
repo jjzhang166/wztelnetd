@@ -51,7 +51,8 @@ int main() {
 
 	printf(LOG_SERVER_RUNNING);
 
-	ThreadCreator::StartThread(&server)->Wait();
+//	ThreadCreator::StartThread(&server)->Wait();
+	server.Run();
 
 	printf(LOG_SERVER_OVER);
 

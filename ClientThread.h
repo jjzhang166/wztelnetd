@@ -33,8 +33,13 @@ public:
 
 	virtual void Run();
 
-
-	void SetSocketOptions();
+	ssize_t SafeWrite(int fd, const void *buf, size_t count);
+	unsigned char *RemoveIacs(unsigned char *ts, int tsLen, int ttyFd,
+			int *pnum_totty);
+	size_t IacSafeWrite(int fd, const char *buf, size_t count);
+	ssize_t SafeReadSocket(int fd, void *buf, size_t count);
+	int ReadScreenNumber(int socket, char* screen);
+	ssize_t SafeReadPtyfd(int fd, void *buf, size_t count, int *retry);
 	void SetPtyType(const string& pty);
 	void SetNeedScreen(bool need);
 	void SetType(const string& type);
@@ -43,6 +48,8 @@ public:
 	void SetClientSocket(int socket);
 private:
 	string FindTty(const string& name);
+	void SubProcess(int &ttyfd, const char *ttyName);
+	void MainProcess(int ptyfd);
 };
 
 #endif /* CLIENTTHREAD_H_ */

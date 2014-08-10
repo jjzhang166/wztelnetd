@@ -3,7 +3,7 @@ target=wztelnetd
 all: $(target)
 
 $(target): Main.cpp ClientThread.cpp Properties.cpp \
-TerminalServer.cpp ThreadCreator.cpp Runnable.cpp
+TerminalServer.cpp ThreadCreator.cpp Runnable.cpp Util.cpp
 	g++ $^ -lpthread -o $@
 
 clean:
