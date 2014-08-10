@@ -24,7 +24,7 @@ protected:
 	char ttyMapFile[1024];
 	bool needScreen;
 	string ptyType;
-	bool local;//使用实达（false）/汇金（true）配置
+	bool local; //使用实达（false）/汇金（true）配置
 
 public:
 	TerminalServer();

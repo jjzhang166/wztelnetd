@@ -33,6 +33,8 @@ public:
 
 	virtual void Run();
 
+
+	void SetSocketOptions();
 	void SetPtyType(const string& pty);
 	void SetNeedScreen(bool need);
 	void SetType(const string& type);

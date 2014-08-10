@@ -26,7 +26,7 @@ int main() {
 
 	string ttymap = "";
 	bool simplecfg = config.GetString("maptype", "") != "star";
-	if (!simplecfg){
+	if (!simplecfg) {
 		ttymap = config.GetString("ttymap", "/etc/stelnetd.conf");
 		printf(LOG_SERVER_SD_MAP_FILE, ttymap.c_str());
 	} else {

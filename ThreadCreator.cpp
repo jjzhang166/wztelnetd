@@ -36,8 +36,8 @@ bool ThreadCreator::AutoDestroy() {
 }
 
 int ThreadCreator::Start() {
-	pthread_create(&pid, (const pthread_attr_t*) 0,
-			ThreadFunction, (void*) this);
+	pthread_create(&pid, (const pthread_attr_t*) 0, ThreadFunction,
+			(void*) this);
 	return pid;
 }
 

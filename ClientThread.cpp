@@ -228,7 +228,8 @@ void print_login_issue(const char *issue_file, const char *tty) {
 	fflush(NULL);
 }
 
-ssize_t safe_read_ptyfd(int fd, void *buf, size_t count, pid_t sonPid, int *retry) {
+ssize_t safe_read_ptyfd(int fd, void *buf, size_t count, pid_t sonPid,
+		int *retry) {
 	ssize_t n;
 	do {
 		n = read(fd, buf, count);
@@ -393,6 +394,27 @@ size_t iac_safe_write(int fd, const char *buf, size_t count) {
 	return total + rc;
 }
 
+void ClientThread::SetSocketOptions() {
+	int keepAlive = 1; //非零值，启用KeepAlive机制
+	int keepIdle = 300; //开始首次KeepAlive探测前的TCP空闭时间（秒）
+	int keepInterval = 500; //两次KeepAlive探测间的时间间隔
+	int keepCount = 3; //判定断开前的KeepAlive探测次数
+
+	if (setsockopt(clientSocket, SOL_SOCKET, SO_KEEPALIVE, (void*) &keepAlive,
+			sizeof(keepAlive)) == -1) {
+	}
+	if (setsockopt(clientSocket, SOL_TCP, TCP_KEEPIDLE, (void *) &keepIdle,
+			sizeof(keepIdle)) == -1) {
+	}
+	if (setsockopt(clientSocket, SOL_TCP, TCP_KEEPINTVL, (void *) &keepInterval,
+			sizeof(keepInterval)) == -1) {
+	}
+	if (setsockopt(clientSocket, SOL_TCP, TCP_KEEPCNT, (void *) &keepCount,
+			sizeof(keepCount)) == -1) {
+	}
+	fcntl(clientSocket, F_SETFL, fcntl(clientSocket, F_GETFL) | O_NONBLOCK);
+}
+
 void ClientThread::Run() {
 	char str[256];
 	int pid = 0;
@@ -402,11 +424,6 @@ void ClientThread::Run() {
 	int fdMax = 0;
 	char recvData[512];
 	char shell[128];
-
-	int keepAlive = 1; //非零值，启用KeepAlive机制
-	int keepIdle = 300; //开始首次KeepAlive探测前的TCP空闭时间（秒）
-	int keepInterval = 500; //两次KeepAlive探测间的时间间隔
-	int keepCount = 3; //判定断开前的KeepAlive探测次数
 
 	struct timeval timeout;
 
@@ -463,21 +480,7 @@ void ClientThread::Run() {
 	fcntl(ptyfd, F_SETFL, fcntl(ptyfd, F_GETFL) | O_NONBLOCK);
 	fcntl(ptyfd, F_SETFD, FD_CLOEXEC);
 
-	//<2>设置socket状态,保持长连接  // 设置KeepAlive参数
-	if (setsockopt(clientSocket, SOL_SOCKET, SO_KEEPALIVE, (void*) &keepAlive,
-			sizeof(keepAlive)) == -1) {
-	}
-	if (setsockopt(clientSocket, SOL_TCP, TCP_KEEPIDLE, (void *) &keepIdle,
-			sizeof(keepIdle)) == -1) {
-	}
-	if (setsockopt(clientSocket, SOL_TCP, TCP_KEEPINTVL, (void *) &keepInterval,
-			sizeof(keepInterval)) == -1) {
-	}
-	if (setsockopt(clientSocket, SOL_TCP, TCP_KEEPCNT, (void *) &keepCount,
-			sizeof(keepCount)) == -1) {
-	}
-	fcntl(clientSocket, F_SETFL, fcntl(clientSocket, F_GETFL) | O_NONBLOCK);
-
+	this->SetSocketOptions();
 	SocketSend(clientSocket, iacs_to_send, sizeof(iacs_to_send));
 
 	::signal(SIGPIPE, SIG_IGN); //忽略socket错误产生的SIGPIPE信号,防止进程异常退出
@@ -485,8 +488,8 @@ void ClientThread::Run() {
 	::signal(SIGCHLD, SIG_IGN); //子进程退出信号处理
 	pid = fork(); /* NOMMU-friendly */
 	if (pid > 0) {
-		printf("sid:%d, pid:%d, ttyname:%s, client:%s, screen:%s\r\n", pid, getpid(), ttyName, clientIp,
-				screenNum);
+		printf("sid:%d, pid:%d, ttyname:%s, client:%s, screen:%s\r\n", pid,
+				getpid(), ttyName, clientIp, screenNum);
 		fflush(NULL);
 
 		buf1Len = 0;
@@ -561,7 +564,8 @@ void ClientThread::Run() {
 				count = 0;
 				if (FD_ISSET(ptyfd, &rdfdset)) {
 					int retry = 0;
-					count = safe_read_ptyfd(ptyfd, ptrBuf2, 256, sonPid, &retry);
+					count = safe_read_ptyfd(ptyfd, ptrBuf2, 256, sonPid,
+							&retry);
 					if (count < 0) {
 						if (retry == 0 || trycount++ > 10) {
 							break;
@@ -596,7 +600,8 @@ void ClientThread::Run() {
 				//判断socket是否可以写入数据，如果可以则把buf2写入socket
 				count = 0;
 				if ((FD_ISSET(clientSocket, &wrfdset)) && (buf2Len > 0)) {
-					count = iac_safe_write(clientSocket, (char *) buf2, buf2Len);
+					count = iac_safe_write(clientSocket, (char *) buf2,
+							buf2Len);
 					if (count < 0) {
 						if (errno != EAGAIN) //如果不能写入，则继续下一步检查
 						{
