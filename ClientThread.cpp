@@ -412,6 +412,11 @@ void ClientThread::MainProcess(int ptyfd) {
 	}
 }
 
+void sig_int(int sig) {
+	exit(0);
+	return;
+}
+
 void ClientThread::Run() {
 	int pid = 0;
 	int ptyfd = 0;
@@ -451,7 +456,7 @@ void ClientThread::Run() {
 
 	::signal(SIGPIPE, SIG_IGN); //忽略socket错误产生的SIGPIPE信号,防止进程异常退出
 	::signal(SIGSEGV, SIG_IGN); //另一端断开
-	::signal(SIGCHLD, SIG_IGN); //子进程退出信号处理
+	::signal(SIGCHLD, &sig_int); //子进程退出信号处理
 	pid = fork(); /* NOMMU-friendly */
 	if (pid > 0) {
 		printf("sid:%d, pid:%d, ttyname:%s, client:%s, screen:%s\r\n", pid,

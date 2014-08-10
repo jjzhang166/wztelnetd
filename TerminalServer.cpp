@@ -60,13 +60,13 @@ void TerminalServer::SetNeedScreen(bool need) {
 	this->needScreen = need;
 }
 
-int close_on_exec_on(int fd) {
-	return fcntl(fd, F_SETFD, FD_CLOEXEC);
-}
-
 void TerminalServer::SetTtyMapFile(bool local, const char* file) {
 	strcpy(ttyMapFile, file);
 	this->local = local;
+}
+
+void childexit(int sig) {
+	waitpid(-1, NULL, WNOHANG);
 }
 
 void TerminalServer::Run() {
@@ -94,11 +94,13 @@ void TerminalServer::Run() {
 		printf(ERROR_CAN_NOT_OPEN_PORT, port);
 		return;
 	}
-	close_on_exec_on(sockfd);
+	fcntl(sockfd, F_SETFD, FD_CLOEXEC);
 
 	if (listen(sockfd, BACKLOG) == -1) {
 		return;
 	}
+
+	::signal(SIGCHLD, &childexit);
 
 	fflush(NULL);
 	while (1) {
@@ -107,7 +109,7 @@ void TerminalServer::Run() {
 				== -1) {
 			continue;
 		}
-		close_on_exec_on(new_fd);
+		fcntl(new_fd, F_SETFD, FD_CLOEXEC);
 
 		pid_t pid = fork();
 		if (pid > 0) {
