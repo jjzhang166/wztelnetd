@@ -27,6 +27,8 @@
 #include <math.h>
 #include "Util.h"
 
+#define EXIT_MAIN_PROCESS(msg) printf(#msg ": count=%d; errno=%d\r\n", count, errno);	fflush(NULL); break;
+
 ClientThread::ClientThread() {
 	this->local = true;
 	this->clientSocket = 0;
@@ -114,7 +116,6 @@ int ClientThread::OpenPty(char* ttyName, char* clientIp, char* screenNum) {
 	}
 	return -1;
 }
-
 
 int ClientThread::ReadScreenNumber(int socket, char* screen) {
 	if (!needScreen) {
@@ -324,98 +325,52 @@ void ClientThread::SubProcess(int &ttyfd, const char *ttyName) {
 }
 
 void ClientThread::MainProcess(int ptyfd) {
-	int fdMax;
-	int count;
-	struct timeval timeout;
-	char recvData[512];
-	unsigned char LsStr[BUFSIZE];
-	fd_set rdfdset, wrfdset;
+	/**
+	 * buf1存放从socket->ptyfd的数据
+	 * buf2存放从ptyfd->socket的数据
+	 */
+	int buf1Len = 0, buf2Len = 0;
+	unsigned char buf1[BUFSIZE], buf2[BUFSIZE];
+	unsigned char *ptrBuf1 = buf1, *ptrBuf2 = buf2;
 
-	unsigned char *ptrBuf1;
-	unsigned char buf1[BUFSIZE]; //接收socket发过来的数据
-	int buf1Len = 0;
-	ptrBuf1 = buf1;
-
-	unsigned char *ptrBuf2;
-	unsigned char buf2[BUFSIZE]; //发送给socket的数据
-	int buf2Len = 0;
-	ptrBuf2 = buf2;
-
-	buf1Len = 0;
-	buf2Len = 0;
 	int trycount = 0;
+	int fdMax = clientSocket > ptyfd ? clientSocket : ptyfd;
+	fd_set rdfdset, wrfdset;
 	while (1) {
-		FD_ZERO(&rdfdset);
 		FD_ZERO(&wrfdset);
+		FD_ZERO(&rdfdset);
+		FD_SET(ptyfd, &wrfdset);
+		FD_SET(ptyfd, &rdfdset);
+		FD_SET(clientSocket, &wrfdset);
+		FD_SET(clientSocket, &rdfdset);
 
-		if (buf1Len > 0) {
-			FD_SET(ptyfd, &wrfdset);
-			if (ptyfd > fdMax) {
-				fdMax = ptyfd;
-			}
-		}
-		if (buf2Len > 0) {
-			FD_SET(clientSocket, &wrfdset);
-			if (clientSocket > fdMax) {
-				fdMax = clientSocket;
-			}
-		}
-		if (buf1Len < BUFSIZE) {
-			FD_SET(clientSocket, &rdfdset);
-			if (clientSocket > fdMax) {
-				fdMax = clientSocket;
-			}
-		}
-		if (buf2Len < BUFSIZE) {
-			FD_SET(ptyfd, &rdfdset);
-			if (ptyfd > fdMax) {
-				fdMax = ptyfd;
-			}
-		}
-		//socket是否有读写，超时时间30秒
-		count = 0;
-		if (fdMax < 0) {
-			fdMax = 0;
-		}
-		timeout.tv_sec = 30; //超时判断为30秒
+		struct timeval timeout;
+		timeout.tv_sec = 30;
 		timeout.tv_usec = 0;
+		int count = select(fdMax + 1, &rdfdset, &wrfdset, NULL, &timeout);
 
-		count = select(fdMax + 1, &rdfdset, &wrfdset, NULL, &timeout);
 		if (count == 0) {
-			printf("select timeout: %d\r\n", timeout.tv_sec);
-			fflush(NULL);
 			continue;
 		} else if (count < 0) {
-			printf("select return: %d, errno: %d\r\n", count, errno);
-			fflush(NULL);
-			break;
+			EXIT_MAIN_PROCESS("select error!")
 		} else {
-			count = 0;
-//			memset(str, 0x00, 256);
+			//如果socket中可以读取数据，则把数据放入buf1中
 			if (FD_ISSET(clientSocket, &rdfdset)) {
-				memset(recvData, 0x00, 512);
-				count = SafeReadSocket(clientSocket, recvData, 256); //向buf1中读入socket发来数据
-				if (count < 0) {
-					printf("0");
-					fflush(NULL);
-					break;
-				} else if (count == 0) {
-					printf("1");
-					fflush(NULL);
-					break;
+				count = SafeReadSocket(clientSocket, ptrBuf1, 256);
+				if (count <= 0) {
+					EXIT_MAIN_PROCESS("read from socket!")
 				} else {
-					memcpy(ptrBuf1, recvData, count);
 					ptrBuf1 = ptrBuf1 + count;
 					buf1Len = buf1Len + count;
 				}
 			}
-			count = 0;
+			//如果ptyfd中的数据可以读取，则把数据放入buf2中
 			if (FD_ISSET(ptyfd, &rdfdset)) {
 				int retry = 0;
 				count = SafeReadPtyfd(ptyfd, ptrBuf2, 256, &retry);
 				if (count < 0) {
 					if (retry == 0 || trycount++ > 10) {
-						break;
+						EXIT_MAIN_PROCESS("read from ptyfd!")
 					}
 				} else {
 					trycount = 0;
@@ -423,42 +378,33 @@ void ClientThread::MainProcess(int ptyfd) {
 					buf2Len = buf2Len + count;
 				}
 			}
-			count = 0;
+			//判断ptyfd是否可以写入数据，如果可以则把buf1写入ptyfd
 			if ((FD_ISSET(ptyfd, &wrfdset)) && (buf1Len > 0)) {
-				int num_totty;
-				unsigned char *ptr;
-				ptr = RemoveIacs((unsigned char *) buf1, buf1Len, ptyfd,
-						&num_totty); //去掉特殊字符
-				count = SafeWrite(ptyfd, ptr, num_totty);
+				int _buf1Len;
+				unsigned char *_buf1;
+				_buf1 = RemoveIacs((unsigned char *) buf1, buf1Len, ptyfd,
+						&_buf1Len);
+				count = SafeWrite(ptyfd, _buf1, _buf1Len);
 				if (count < 0) {
-					if (errno != EAGAIN) //应用程序现在没有数据可写请稍后再试
-					{
-						printf("3");
-						fflush(NULL);
-						break; //关闭当前连接
+					if (errno != EAGAIN) {
+						EXIT_MAIN_PROCESS("write to ptyfd!")
 					}
 				} else {
-					memcpy(LsStr, ptr + count, num_totty - count);
-					buf1Len = num_totty - count;
-					memcpy(buf1, LsStr, buf1Len);
+					memmove(buf1, _buf1 + count, _buf1Len - count);
+					buf1Len = _buf1Len - count;
 					ptrBuf1 = buf1 + buf1Len;
 				}
 			}
 			//判断socket是否可以写入数据，如果可以则把buf2写入socket
-			count = 0;
 			if ((FD_ISSET(clientSocket, &wrfdset)) && (buf2Len > 0)) {
 				count = IacSafeWrite(clientSocket, (char *) buf2, buf2Len);
 				if (count < 0) {
-					if (errno != EAGAIN) //如果不能写入，则继续下一步检查
-					{
-						printf("4");
-						fflush(NULL);
-						break; //关闭当前连接
+					if (errno != EAGAIN) {
+						EXIT_MAIN_PROCESS("write to socket!")
 					}
 				} else {
-					memcpy(LsStr, buf2 + count, buf2Len - count);
+					memmove(buf2, buf2 + count, buf2Len - count);
 					buf2Len = buf2Len - count;
-					memcpy(buf2, LsStr, buf2Len);
 					ptrBuf2 = buf2 + buf2Len;
 				}
 			}
@@ -508,6 +454,9 @@ void ClientThread::Run() {
 	::signal(SIGCHLD, SIG_IGN); //子进程退出信号处理
 	pid = fork(); /* NOMMU-friendly */
 	if (pid > 0) {
+		printf("sid:%d, pid:%d, ttyname:%s, client:%s, screen:%s\r\n", pid,
+				getpid(), ttyName, clientIp, screenNum);
+		fflush(NULL);
 		MainProcess(ptyfd);
 		kill(pid, SIGKILL);
 		waitpid(pid, NULL, 0);

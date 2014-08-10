@@ -31,6 +31,7 @@ start:
 
 stop:
 	service $(target) stop
+	-killall wztelnetd
 	
 enable:
 	chkconfig $(target) on
