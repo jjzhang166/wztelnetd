@@ -27,10 +27,10 @@
 #include <math.h>
 #include "Util.h"
 
-#define LOG(msg)
-#define EXIT_MAIN_PROCESS(msg) break;
-//#define LOG(msg) printf(msg); fflush(NULL);
-//#define EXIT_MAIN_PROCESS(msg) printf(#msg ": count=%d; errno=%d\r\n", count, errno);	fflush(NULL); break;
+//#define LOG(msg)
+//#define EXIT_MAIN_PROCESS(msg) break;
+#define LOG(msg) printf(msg); fflush(NULL);
+#define EXIT_MAIN_PROCESS(msg) printf(#msg ": count=%d; errno=%d\r\n", count, errno);	fflush(NULL); break;
 
 ClientThread::ClientThread() {
 	this->local = true;
@@ -337,9 +337,9 @@ void ClientThread::MainProcess(int ptyfd) {
 	unsigned char *ptrBuf1 = buf1, *ptrBuf2 = buf2;
 
 	int trycount = 0;
-	int fdMax = clientSocket > ptyfd ? clientSocket : ptyfd;
 	fd_set rdfdset, wrfdset;
 	while (1) {
+		int fdMax;
 		FD_ZERO(&wrfdset);
 		FD_ZERO(&rdfdset);
 
@@ -453,46 +453,53 @@ void ClientThread::Run() {
 	char screenNum[10];
 	ReadScreenNumber(clientSocket, screenNum);
 
-	char ttyName[128];
-	if (this->ptyType == "unix98") {
-		ptyfd = OpenPtmx(ttyName, clientIp, screenNum);
-	} else {
-		ptyfd = OpenPty(ttyName, clientIp, screenNum);
-	}
+	while (1) {
+		char ttyName[128];
+		if (this->ptyType == "unix98") {
+			ptyfd = OpenPtmx(ttyName, clientIp, screenNum);
+		} else {
+			ptyfd = OpenPty(ttyName, clientIp, screenNum);
+		}
 
-	if (ptyfd < 0) {
-		char send[128];
-		sprintf(send, ERROR_CAN_NOT_FOUND_TTY, clientIp, screenNum, ttyName);
-		socket_send(clientSocket, send, strlen(send));
-		close(clientSocket);
-		return;
-	}
+		if (ptyfd < 0) {
+			char send[128];
+			sprintf(send, ERROR_CAN_NOT_FOUND_TTY, clientIp, screenNum,
+					ttyName);
+			socket_send(clientSocket, send, strlen(send));
+			close(clientSocket);
+			return;
+		}
 
-	fcntl(ptyfd, F_SETFL, fcntl(ptyfd, F_GETFL) | O_NONBLOCK);
-	fcntl(ptyfd, F_SETFD, FD_CLOEXEC);
+		fcntl(ptyfd, F_SETFL, fcntl(ptyfd, F_GETFL) | O_NONBLOCK);
+		fcntl(ptyfd, F_SETFD, FD_CLOEXEC);
 
-	socket_options(clientSocket);
-	fcntl(clientSocket, F_SETFL, fcntl(clientSocket, F_GETFL) | O_NONBLOCK);
-	socket_send(clientSocket, iacs_to_send, sizeof(iacs_to_send));
+		socket_options(clientSocket);
+		fcntl(clientSocket, F_SETFL, fcntl(clientSocket, F_GETFL) | O_NONBLOCK);
+		socket_send(clientSocket, iacs_to_send, sizeof(iacs_to_send));
 
-	pid = fork(); /* NOMMU-friendly */
-	if (pid > 0) {
-		printf("sid:%d, pid:%d, ttyname:%s, client:%s, screen:%s\r\n", pid,
-				getpid(), ttyName, clientIp, screenNum);
-		fflush(NULL);
-		MainProcess(ptyfd);
-		kill(pid, SIGKILL);
-		waitpid(pid, NULL, 0);
-		close(ttyfd);
-		close(ptyfd);
-		close(clientSocket);
-	} else if (pid == 0) { //子进程开始执行
-		SubProcess(ttyfd, ttyName);
-	} else if (pid < 0) {
-		printf("create process error: %d\r\n", pid);
-		fflush(NULL);
-		close(ttyfd);
-		close(ptyfd);
-		close(clientSocket);
+		pid = fork();
+		if (pid > 0) {
+			printf("sid:%d, pid:%d, ttyname:%s, client:%s, screen:%s\r\n", pid,
+					getpid(), ttyName, clientIp, screenNum);
+			fflush(NULL);
+			MainProcess(ptyfd);
+			kill(pid, SIGKILL);
+			waitpid(pid, NULL, 0);
+			close(ttyfd);
+			close(ptyfd);
+		} else if (pid == 0) { //子进程开始执行
+			SubProcess(ttyfd, ttyName);
+		} else if (pid < 0) {
+			printf("create process error: %d errno: %d\r\n", pid, errno);
+			fflush(NULL);
+			close(ttyfd);
+			close(ptyfd);
+			if (errno == EAGAIN) {
+				continue;
+			} else {
+				close(clientSocket);
+				break;
+			}
+		}
 	}
 }

@@ -69,6 +69,10 @@ void childexit(int sig) {
 	waitpid(-1, NULL, WNOHANG);
 }
 
+void segvexit(int sig) {
+	exit(0);
+}
+
 void TerminalServer::Run() {
 	int sockfd = 0, new_fd = 0;
 	int yes = 1;
@@ -117,8 +121,8 @@ void TerminalServer::Run() {
 			continue;
 		} else if (pid == 0) {
 			::signal(SIGPIPE, SIG_IGN);
-			::signal(SIGSEGV, SIG_IGN);
-			::signal(SIGCHLD, &childexit);
+			::signal(SIGCHLD, SIG_IGN);
+			::signal(SIGSEGV, &segvexit);
 			close(sockfd);
 			ClientThread client;
 			client.SetPtyType(this->ptyType);

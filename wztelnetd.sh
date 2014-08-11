@@ -1,5 +1,5 @@
 #!/bin/sh -e
-# chkconfig:345 99 27 
+# chkconfig:345 89 17 
 # description: wztelnetd
 
 PIDFILE=/var/run/wztelnetd.pid
