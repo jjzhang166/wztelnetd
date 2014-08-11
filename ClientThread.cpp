@@ -27,7 +27,10 @@
 #include <math.h>
 #include "Util.h"
 
-#define EXIT_MAIN_PROCESS(msg) printf(#msg ": count=%d; errno=%d\r\n", count, errno);	fflush(NULL); break;
+#define LOG(msg)
+#define EXIT_MAIN_PROCESS(msg) break;
+//#define LOG(msg) printf(msg); fflush(NULL);
+//#define EXIT_MAIN_PROCESS(msg) printf(#msg ": count=%d; errno=%d\r\n", count, errno);	fflush(NULL); break;
 
 ClientThread::ClientThread() {
 	this->local = true;
@@ -339,10 +342,23 @@ void ClientThread::MainProcess(int ptyfd) {
 	while (1) {
 		FD_ZERO(&wrfdset);
 		FD_ZERO(&rdfdset);
-		FD_SET(ptyfd, &wrfdset);
-		FD_SET(ptyfd, &rdfdset);
-		FD_SET(clientSocket, &wrfdset);
-		FD_SET(clientSocket, &rdfdset);
+
+		if (buf1Len > 0) {
+			FD_SET(ptyfd, &wrfdset);
+			fdMax = ptyfd > fdMax ? ptyfd : fdMax;
+		}
+		if (buf2Len > 0) {
+			FD_SET(clientSocket, &wrfdset);
+			fdMax = clientSocket > fdMax ? clientSocket : fdMax;
+		}
+		if (buf1Len < BUFSIZE) {
+			FD_SET(clientSocket, &rdfdset);
+			fdMax = clientSocket > fdMax ? clientSocket : fdMax;
+		}
+		if (buf2Len < BUFSIZE) {
+			FD_SET(ptyfd, &rdfdset);
+			fdMax = ptyfd > fdMax ? ptyfd : fdMax;
+		}
 
 		struct timeval timeout;
 		timeout.tv_sec = 30;
@@ -350,12 +366,15 @@ void ClientThread::MainProcess(int ptyfd) {
 		int count = select(fdMax + 1, &rdfdset, &wrfdset, NULL, &timeout);
 
 		if (count == 0) {
+			LOG("1")
 			continue;
 		} else if (count < 0) {
 			EXIT_MAIN_PROCESS("select error!")
 		} else {
+			LOG("2")
 			//如果socket中可以读取数据，则把数据放入buf1中
 			if (FD_ISSET(clientSocket, &rdfdset)) {
+				LOG("3")
 				count = SafeReadSocket(clientSocket, ptrBuf1, 256);
 				if (count <= 0) {
 					EXIT_MAIN_PROCESS("read from socket!")
@@ -366,6 +385,7 @@ void ClientThread::MainProcess(int ptyfd) {
 			}
 			//如果ptyfd中的数据可以读取，则把数据放入buf2中
 			if (FD_ISSET(ptyfd, &rdfdset)) {
+				LOG("4")
 				int retry = 0;
 				count = SafeReadPtyfd(ptyfd, ptrBuf2, 256, &retry);
 				if (count < 0) {
@@ -379,42 +399,43 @@ void ClientThread::MainProcess(int ptyfd) {
 				}
 			}
 			//判断ptyfd是否可以写入数据，如果可以则把buf1写入ptyfd
-			if ((FD_ISSET(ptyfd, &wrfdset)) && (buf1Len > 0)) {
-				int _buf1Len;
-				unsigned char *_buf1;
-				_buf1 = RemoveIacs((unsigned char *) buf1, buf1Len, ptyfd,
-						&_buf1Len);
-				count = SafeWrite(ptyfd, _buf1, _buf1Len);
-				if (count < 0) {
-					if (errno != EAGAIN) {
-						EXIT_MAIN_PROCESS("write to ptyfd!")
+			if (FD_ISSET(ptyfd, &wrfdset)) {
+				LOG("5")
+				if (buf1Len > 0) {
+					int _buf1Len;
+					unsigned char *_buf1;
+					_buf1 = RemoveIacs((unsigned char *) buf1, buf1Len, ptyfd,
+							&_buf1Len);
+					count = SafeWrite(ptyfd, _buf1, _buf1Len);
+					if (count < 0) {
+						if (errno != EAGAIN) {
+							EXIT_MAIN_PROCESS("write to ptyfd!")
+						}
+					} else {
+						memmove(buf1, _buf1 + count, _buf1Len - count);
+						buf1Len = _buf1Len - count;
+						ptrBuf1 = buf1 + buf1Len;
 					}
-				} else {
-					memmove(buf1, _buf1 + count, _buf1Len - count);
-					buf1Len = _buf1Len - count;
-					ptrBuf1 = buf1 + buf1Len;
 				}
 			}
 			//判断socket是否可以写入数据，如果可以则把buf2写入socket
-			if ((FD_ISSET(clientSocket, &wrfdset)) && (buf2Len > 0)) {
-				count = IacSafeWrite(clientSocket, (char *) buf2, buf2Len);
-				if (count < 0) {
-					if (errno != EAGAIN) {
-						EXIT_MAIN_PROCESS("write to socket!")
+			if (FD_ISSET(clientSocket, &wrfdset)) {
+				LOG("6")
+				if (buf2Len > 0) {
+					count = IacSafeWrite(clientSocket, (char *) buf2, buf2Len);
+					if (count < 0) {
+						if (errno != EAGAIN) {
+							EXIT_MAIN_PROCESS("write to socket!")
+						}
+					} else {
+						memmove(buf2, buf2 + count, buf2Len - count);
+						buf2Len = buf2Len - count;
+						ptrBuf2 = buf2 + buf2Len;
 					}
-				} else {
-					memmove(buf2, buf2 + count, buf2Len - count);
-					buf2Len = buf2Len - count;
-					ptrBuf2 = buf2 + buf2Len;
 				}
 			}
 		}
 	}
-}
-
-void sig_int(int sig) {
-	exit(0);
-	return;
 }
 
 void ClientThread::Run() {
@@ -454,9 +475,6 @@ void ClientThread::Run() {
 	fcntl(clientSocket, F_SETFL, fcntl(clientSocket, F_GETFL) | O_NONBLOCK);
 	socket_send(clientSocket, iacs_to_send, sizeof(iacs_to_send));
 
-	::signal(SIGPIPE, SIG_IGN); //忽略socket错误产生的SIGPIPE信号,防止进程异常退出
-	::signal(SIGSEGV, SIG_IGN); //另一端断开
-	::signal(SIGCHLD, &sig_int); //子进程退出信号处理
 	pid = fork(); /* NOMMU-friendly */
 	if (pid > 0) {
 		printf("sid:%d, pid:%d, ttyname:%s, client:%s, screen:%s\r\n", pid,

@@ -116,6 +116,9 @@ void TerminalServer::Run() {
 			close(new_fd);
 			continue;
 		} else if (pid == 0) {
+			::signal(SIGPIPE, SIG_IGN);
+			::signal(SIGSEGV, SIG_IGN);
+			::signal(SIGCHLD, &childexit);
 			close(sockfd);
 			ClientThread client;
 			client.SetPtyType(this->ptyType);
