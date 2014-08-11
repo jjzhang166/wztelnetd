@@ -30,7 +30,7 @@
 //#define LOG(msg)
 //#define EXIT_MAIN_PROCESS(msg) break;
 #define LOG(msg) printf(msg); fflush(NULL);
-#define EXIT_MAIN_PROCESS(msg) printf(#msg ": count=%d; errno=%d\r\n", count, errno);	fflush(NULL); break;
+#define EXIT_MAIN_PROCESS(msg, sock) printf(#msg ": count=%d; errno=%d\r\n", count, errno);	fflush(NULL); return sock;
 
 ClientThread::ClientThread() {
 	this->local = true;
@@ -327,7 +327,7 @@ void ClientThread::SubProcess(int &ttyfd, const char *ttyName) {
 	execvp("/bin/login", (char**) (login_argv));
 }
 
-void ClientThread::MainProcess(int ptyfd) {
+int ClientThread::MainProcess(int ptyfd) {
 	/**
 	 * buf1存放从socket->ptyfd的数据
 	 * buf2存放从ptyfd->socket的数据
@@ -369,7 +369,7 @@ void ClientThread::MainProcess(int ptyfd) {
 			LOG("1")
 			continue;
 		} else if (count < 0) {
-			EXIT_MAIN_PROCESS("select error!")
+			EXIT_MAIN_PROCESS("select error!", 1)
 		} else {
 			LOG("2")
 			//如果socket中可以读取数据，则把数据放入buf1中
@@ -377,7 +377,7 @@ void ClientThread::MainProcess(int ptyfd) {
 				LOG("3")
 				count = SafeReadSocket(clientSocket, ptrBuf1, 256);
 				if (count <= 0) {
-					EXIT_MAIN_PROCESS("read from socket!")
+					EXIT_MAIN_PROCESS("read from socket!", 1)
 				} else {
 					ptrBuf1 = ptrBuf1 + count;
 					buf1Len = buf1Len + count;
@@ -390,7 +390,7 @@ void ClientThread::MainProcess(int ptyfd) {
 				count = SafeReadPtyfd(ptyfd, ptrBuf2, 256, &retry);
 				if (count < 0) {
 					if (retry == 0 || trycount++ > 10) {
-						EXIT_MAIN_PROCESS("read from ptyfd!")
+						EXIT_MAIN_PROCESS("read from ptyfd!", 0)
 					}
 				} else {
 					trycount = 0;
@@ -409,7 +409,7 @@ void ClientThread::MainProcess(int ptyfd) {
 					count = SafeWrite(ptyfd, _buf1, _buf1Len);
 					if (count < 0) {
 						if (errno != EAGAIN) {
-							EXIT_MAIN_PROCESS("write to ptyfd!")
+							EXIT_MAIN_PROCESS("write to ptyfd!", 0)
 						}
 					} else {
 						memmove(buf1, _buf1 + count, _buf1Len - count);
@@ -425,7 +425,7 @@ void ClientThread::MainProcess(int ptyfd) {
 					count = IacSafeWrite(clientSocket, (char *) buf2, buf2Len);
 					if (count < 0) {
 						if (errno != EAGAIN) {
-							EXIT_MAIN_PROCESS("write to socket!")
+							EXIT_MAIN_PROCESS("write to socket!", 1)
 						}
 					} else {
 						memmove(buf2, buf2 + count, buf2Len - count);
@@ -436,6 +436,7 @@ void ClientThread::MainProcess(int ptyfd) {
 			}
 		}
 	}
+	return -1;
 }
 
 void ClientThread::Run() {
@@ -482,11 +483,15 @@ void ClientThread::Run() {
 			printf("sid:%d, pid:%d, ttyname:%s, client:%s, screen:%s\r\n", pid,
 					getpid(), ttyName, clientIp, screenNum);
 			fflush(NULL);
-			MainProcess(ptyfd);
+			int sockerr = MainProcess(ptyfd);
 			kill(pid, SIGKILL);
 			waitpid(pid, NULL, 0);
 			close(ttyfd);
 			close(ptyfd);
+			if (sockerr) {
+				close(clientSocket);
+				break;
+			}
 		} else if (pid == 0) { //子进程开始执行
 			SubProcess(ttyfd, ttyName);
 		} else if (pid < 0) {

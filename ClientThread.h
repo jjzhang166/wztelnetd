@@ -49,7 +49,7 @@ public:
 private:
 	string FindTty(const string& name);
 	void SubProcess(int &ttyfd, const char *ttyName);
-	void MainProcess(int ptyfd);
+	int MainProcess(int ptyfd);
 };
 
 #endif /* CLIENTTHREAD_H_ */
