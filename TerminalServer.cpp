@@ -126,6 +126,7 @@ void TerminalServer::Run() {
 			close(sockfd);
 			ClientThread client;
 			client.SetPtyType(this->ptyType);
+			client.SetType(this->type);
 			client.SetNeedScreen(this->needScreen);
 			client.SetClientSocket(new_fd);
 			client.SetClientAddress(their_addr.sin_addr);

@@ -16,7 +16,7 @@ static const char fmtstr_t[] = "%H:%M:%S";
 
 void socket_options(int sock) {
 	int keepAlive = 1; //非零值，启用KeepAlive机制
-	int keepIdle = 300; //开始首次KeepAlive探测前的TCP空闭时间（秒）
+	int keepIdle = 100; //开始首次KeepAlive探测前的TCP空闭时间（秒）
 	int keepInterval = 500; //两次KeepAlive探测间的时间间隔
 	int keepCount = 3; //判定断开前的KeepAlive探测次数
 
@@ -134,7 +134,6 @@ void print_login_issue(const char *issue_file, const char *tty) {
 				break;
 			default:
 				buf[0] = c;
-				break;
 			}
 		}
 		//可以加入当前TTY号的显示

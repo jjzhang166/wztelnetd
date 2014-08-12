@@ -48,7 +48,7 @@ public:
 	void SetClientSocket(int socket);
 private:
 	string FindTty(const string& name);
-	void SubProcess(int &ttyfd, const char *ttyName);
+	void SubProcess(const char *ttyName);
 	int MainProcess(int ptyfd);
 };
 

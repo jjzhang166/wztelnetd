@@ -46,6 +46,10 @@ void ClientThread::SetPtyType(const string& pty) {
 	this->ptyType = pty;
 }
 
+void ClientThread::SetType(const string& type) {
+	this->type = type;
+}
+
 void ClientThread::SetNeedScreen(bool need) {
 	this->needScreen = need;
 }
@@ -301,17 +305,16 @@ size_t ClientThread::IacSafeWrite(int fd, const char *buf, size_t count) {
 	return total + rc;
 }
 
-void ClientThread::SubProcess(int &ttyfd, const char *ttyName) {
-	int pid;
+void ClientThread::SubProcess(const char *ttyName) {
 	struct termios termbuf;
 	//子进程开始执行
 	setenv("TERM", this->type.c_str(), 1);
 	setsid();
 	close(0);
-	ttyfd = open(ttyName, O_RDWR, 0666);
+	int ttyfd = open(ttyName, O_RDWR, 0666);
 	dup2(0, 1);
 	dup2(0, 2);
-	pid = getpid();
+	int pid = getpid();
 	tcsetpgrp(0, pid); /* switch this tty's process group to us */
 	tcgetattr(0, &termbuf);
 	termbuf.c_lflag |= ECHO;
@@ -470,12 +473,12 @@ void ClientThread::Run() {
 			close(clientSocket);
 			return;
 		}
-
 		fcntl(ptyfd, F_SETFL, fcntl(ptyfd, F_GETFL) | O_NONBLOCK);
 		fcntl(ptyfd, F_SETFD, FD_CLOEXEC);
 
 		socket_options(clientSocket);
 		fcntl(clientSocket, F_SETFL, fcntl(clientSocket, F_GETFL) | O_NONBLOCK);
+
 		socket_send(clientSocket, iacs_to_send, sizeof(iacs_to_send));
 
 		pid = fork();
@@ -486,18 +489,17 @@ void ClientThread::Run() {
 			int sockerr = MainProcess(ptyfd);
 			kill(pid, SIGKILL);
 			waitpid(pid, NULL, 0);
-			close(ttyfd);
 			close(ptyfd);
 			if (sockerr) {
 				close(clientSocket);
 				break;
 			}
 		} else if (pid == 0) { //子进程开始执行
-			SubProcess(ttyfd, ttyName);
+			close(ptyfd);
+			SubProcess(ttyName);
 		} else if (pid < 0) {
 			printf("create process error: %d errno: %d\r\n", pid, errno);
 			fflush(NULL);
-			close(ttyfd);
 			close(ptyfd);
 			if (errno == EAGAIN) {
 				continue;
