@@ -400,8 +400,8 @@ int ClientThread::MainProcess(int ptyfd) {
 			}
 			//判断ptyfd是否可以写入数据，如果可以则把buf1写入ptyfd
 			if (FD_ISSET(ptyfd, &wrfdset)) {
-				LOG("5")
 				if (buf1Len > 0) {
+					LOG("5")
 					int _buf1Len;
 					unsigned char *_buf1;
 					_buf1 = RemoveIacs((unsigned char *) buf1, buf1Len, ptyfd,
@@ -420,8 +420,8 @@ int ClientThread::MainProcess(int ptyfd) {
 			}
 			//判断socket是否可以写入数据，如果可以则把buf2写入socket
 			if (FD_ISSET(clientSocket, &wrfdset)) {
-				LOG("6")
 				if (buf2Len > 0) {
+					LOG("6")
 					count = IacSafeWrite(clientSocket, (char *) buf2, buf2Len);
 					if (count < 0) {
 						if (errno != EAGAIN) {

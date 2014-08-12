@@ -15,8 +15,14 @@ function encode() {
 	rm tmp
 }
 
-encode Messages.h
-encode wztelnetd.sh
-encode wztelnetd.cfg
+function enc() {
+    until [ -z "$1" ]
+    do
+	encode $1    
+	shift
+    done
+}
+
+enc wztelnetd.sh wztelnetd.cfg *.h *.cpp
 
 echo $T > current_encoding
