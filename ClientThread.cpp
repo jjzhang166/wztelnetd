@@ -28,7 +28,7 @@
 #include "Util.h"
 
 //#define LOG(msg)
-//#define EXIT_MAIN_PROCESS(msg) break;
+//#define EXIT_MAIN_PROCESS(msg, sock) return sock;
 #define LOG(msg) printf(msg); fflush(NULL);
 #define EXIT_MAIN_PROCESS(msg, sock) printf(#msg ": count=%d; errno=%d\r\n", count, errno);	fflush(NULL); return sock;
 
