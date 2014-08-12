@@ -489,6 +489,9 @@ void ClientThread::Run() {
 			int sockerr = MainProcess(ptyfd);
 			kill(pid, SIGKILL);
 			waitpid(pid, NULL, 0);
+			char cmd[128];
+			sprintf(cmd, "fuser -k %s", ttyName);
+			shell_execute(cmd);
 			close(ptyfd);
 			if (sockerr) {
 				close(clientSocket);
