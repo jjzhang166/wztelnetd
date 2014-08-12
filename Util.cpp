@@ -7,6 +7,7 @@
 #include "Messages.h"
 #include <stdio.h>
 #include <netinet/tcp.h>
+#include <sys/socket.h>
 #include <sys/utsname.h>
 #include <time.h>
 
