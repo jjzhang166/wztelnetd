@@ -20,6 +20,7 @@ protected:
 	int port;
 	int count;
 	string type;
+	string clientType;
 	char ttyMapFile[1024];
 	bool needScreen;
 	string ptyType;
@@ -36,6 +37,7 @@ public:
 	void SetPort(int port);
 	void SetCount(int count);
 	void SetType(const string& type);
+	void SetClientType(const string& clientType);
 	void SetTtyMapFile(bool local, const char* file);
 };
 

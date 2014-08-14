@@ -21,6 +21,7 @@ int main() {
 	int port = config.GetInteger("port", 3232);
 	int count = config.GetInteger("maxcount", 256);
 	string type = config.GetString("vttype", "vt100");
+	string clienttype = config.GetString("clienttype", "sd");
 	printf(LOG_SERVER_PORT, port);
 	printf(LOG_SERVER_TTY_TYPE, type.c_str());
 
@@ -34,11 +35,13 @@ int main() {
 		printf(LOG_SERVER_MAP_FILE, ttymap.c_str());
 	}
 	printf(LOG_SERVER_PTY_TYPE, config.GetString("device").c_str());
+	printf(LOG_CLIENT_TYPE, clienttype.c_str());
 
 	TerminalServer server;
 	server.SetPort(port);
 	server.SetCount(count);
 	server.SetType(type);
+	server.SetClientType(clienttype);
 	server.SetTtyMapFile(simplecfg, ttymap.c_str());
 	server.SetPtyType(config.GetString("device"));
 	server.SetNeedScreen(config.GetBoolean("screenNum"));

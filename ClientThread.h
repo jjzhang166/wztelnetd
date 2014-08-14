@@ -18,6 +18,7 @@ class ClientThread: public Runnable {
 protected:
 	int clientSocket;
 	string type;
+	string clientType;
 	bool needScreen;
 	string ptyType;
 	struct in_addr clientAddress;
@@ -38,11 +39,13 @@ public:
 			int *pnum_totty);
 	size_t IacSafeWrite(int fd, const char *buf, size_t count);
 	ssize_t SafeReadSocket(int fd, void *buf, size_t count);
-	int ReadScreenNumber(int socket, char* screen);
+	int SdReadScreenNumber(int socket, char* screen);
+	int GgReadScreenNumber(int socket, char* screen);
 	ssize_t SafeReadPtyfd(int fd, void *buf, size_t count, int *retry);
 	void SetPtyType(const string& pty);
 	void SetNeedScreen(bool need);
 	void SetType(const string& type);
+	void SetClientType(const string& clientType);
 	void SetClientAddress(struct in_addr address);
 	void SetTtyMapFile(bool local, const char* file);
 	void SetClientSocket(int socket);

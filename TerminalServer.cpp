@@ -52,6 +52,10 @@ void TerminalServer::SetType(const string& type) {
 	this->type = type;
 }
 
+void TerminalServer::SetClientType(const string& clientType) {
+	this->clientType = clientType;
+}
+
 void TerminalServer::SetPtyType(const string& pty) {
 	this->ptyType = pty;
 }
@@ -127,6 +131,7 @@ void TerminalServer::Run() {
 			ClientThread client;
 			client.SetPtyType(this->ptyType);
 			client.SetType(this->type);
+			client.SetClientType(this->clientType);
 			client.SetNeedScreen(this->needScreen);
 			client.SetClientSocket(new_fd);
 			client.SetClientAddress(their_addr.sin_addr);

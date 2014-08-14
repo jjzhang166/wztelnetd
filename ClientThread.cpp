@@ -50,6 +50,10 @@ void ClientThread::SetType(const string& type) {
 	this->type = type;
 }
 
+void ClientThread::SetClientType(const string& clientType) {
+	this->clientType = clientType;
+}
+
 void ClientThread::SetNeedScreen(bool need) {
 	this->needScreen = need;
 }
@@ -124,7 +128,7 @@ int ClientThread::OpenPty(char* ttyName, char* clientIp, char* screenNum) {
 	return -1;
 }
 
-int ClientThread::ReadScreenNumber(int socket, char* screen) {
+int ClientThread::SdReadScreenNumber(int socket, char* screen) {
 	if (!needScreen) {
 		screen[0] = '\0';
 		return 0;
@@ -136,6 +140,27 @@ int ClientThread::ReadScreenNumber(int socket, char* screen) {
 	char num[12];
 	int len = recv(socket, num, 12, 0) - 2;
 	memcpy(screen, num + 2, len);
+	screen[len] = 0;
+	socket_send(socket, chr2, 6);
+	return len;
+}
+
+int ClientThread::GgReadScreenNumber(int socket, char* screen) {
+	if (!needScreen) {
+		screen[0] = '\0';
+		return 0;
+	}
+
+	char chr1[] = { 0xff, 0xfd, 0x18, 0xff, 0xfd, 0x7d };
+	char chr2[] = { 0xff, 0xfa, 0x18, 0x01, 0xff, 0xf0, 0xff, 0xfa, 0x7d, 0x01,
+			0xff, 0xf0 };
+	socket_send(socket, chr1, 6);
+	char num[24];
+	recv(socket, num, 12, 0);
+	socket_send(socket, chr2, 12);
+
+	int len = recv(socket, num, 40, 0) - 29;
+	memcpy(screen, num + 27, len);
 	screen[len] = 0;
 	socket_send(socket, chr2, 6);
 	return len;
@@ -455,7 +480,12 @@ void ClientThread::Run() {
 	sprintf(clientIp, "%s", inet_ntoa(clientAddress));
 
 	char screenNum[10];
-	ReadScreenNumber(clientSocket, screenNum);
+
+	if (this->clientType == "sd") {
+		SdReadScreenNumber(clientSocket, screenNum);
+	} else {
+		GgReadScreenNumber(clientSocket, screenNum);
+	}
 
 	while (1) {
 		char ttyName[128];
