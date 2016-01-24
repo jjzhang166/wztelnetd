@@ -9,8 +9,8 @@ TerminalServer.cpp ThreadCreator.cpp Runnable.cpp Util.cpp
 clean:
 	rm -f $(target)
 
-install:
-	cp $(target).cfg /etc/
+install: $(target)
+	if [ -f /etc/$(target).cfg.bak ]; then mv /etc/$(target).cfg.bak  /etc/$(target).cfg ; else cp $(target).cfg /etc/ ; fi
 	cp $(target).sh  /etc/init.d/$(target)
 	cp $(target)     /sbin/
 	chmod +x /etc/init.d/$(target)
@@ -18,19 +18,18 @@ install:
 	/sbin/chkconfig --add $(target)
 	/sbin/chkconfig --list | grep $(target)
 
-uninstall:
-	rm -f /etc/$(target).cfg
+uninstall: stop
+	if [ -e /etc/$(target).cfg ]; then mv /etc/$(target).cfg /etc/$(target).cfg.bak; fi
 	rm -f /etc/init.d/$(target)
 	rm -f /sbin/$(target)
 	rm -f /var/log/$(target).log
 	rm -f /var/run/$(target).pid
 
-#	ngcbs yjdlzyyd
 start:
 	service $(target) start
 
 stop:
-	service $(target) stop
+	-killall wztelnetd
 
 enable:
 	chkconfig $(target) on
@@ -38,7 +37,6 @@ enable:
 disable:
 	chkconfig $(target) off
 
-
-rebuild: stop uninstall $(target) install start
+reinstall: uninstall clean $(target) install start
 
 .PHONY: all clean install uninstall
