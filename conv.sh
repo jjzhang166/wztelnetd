@@ -1,13 +1,14 @@
 #!/bin/bash
 
 F=`cat current_encoding`
-
-if [ "$F" = "GBK" ]; then  
-    T=UTF-8
+if [[ `tr '[A-Z]' '[a-z]'<<<"$LANG"` == *utf* ]]; then 
+	T=UTF-8
 else
 	T=GBK
 fi
-
+if [ "$1" != "" ]; then
+	T=$1
+fi
 function encode() {
 	echo $F -\> $T - $1
 	iconv -f $F -t $T $1 > tmp
@@ -23,6 +24,6 @@ function enc() {
     done
 }
 
-enc wztelnetd.sh wztelnetd.cfg *.h *.cpp
+enc wztelnetd.sh wztelnetd.cfg README *.h *.cpp
 
 echo $T > current_encoding

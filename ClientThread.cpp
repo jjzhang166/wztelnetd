@@ -117,6 +117,10 @@ int ClientThread::OpenPty(char* ttyName, char* clientIp, char* screenNum) {
 	strcpy(ptyName, ttyName);
 	ptyName[5] = 'p';
 
+	char cmd[128];
+	sprintf(cmd, "fuser -k %s %s", ttyName, ptyName);
+	shell_execute(cmd);
+
 	struct stat stb;
 	if (stat(ptyName, &stb) < 0) {
 		return -1;
@@ -389,20 +393,17 @@ int ClientThread::MainProcess(int ptyfd) {
 		}
 
 		struct timeval timeout;
-		timeout.tv_sec = 30;
+		timeout.tv_sec = 10;
 		timeout.tv_usec = 0;
 		int count = select(fdMax + 1, &rdfdset, &wrfdset, NULL, &timeout);
 
 		if (count == 0) {
-			LOG("1")
 			continue;
 		} else if (count < 0) {
 			EXIT_MAIN_PROCESS("select error!", 1)
 		} else {
-			LOG("2")
 			//如果socket中可以读取数据，则把数据放入buf1中
 			if (FD_ISSET(clientSocket, &rdfdset)) {
-				LOG("3")
 				count = SafeReadSocket(clientSocket, ptrBuf1, 256);
 				if (count <= 0) {
 					EXIT_MAIN_PROCESS("read from socket!", 1)
@@ -413,7 +414,6 @@ int ClientThread::MainProcess(int ptyfd) {
 			}
 			//如果ptyfd中的数据可以读取，则把数据放入buf2中
 			if (FD_ISSET(ptyfd, &rdfdset)) {
-				LOG("4")
 				int retry = 0;
 				count = SafeReadPtyfd(ptyfd, ptrBuf2, 256, &retry);
 				if (count < 0) {
@@ -429,7 +429,6 @@ int ClientThread::MainProcess(int ptyfd) {
 			//判断ptyfd是否可以写入数据，如果可以则把buf1写入ptyfd
 			if (FD_ISSET(ptyfd, &wrfdset)) {
 				if (buf1Len > 0) {
-					LOG("5")
 					int _buf1Len;
 					unsigned char *_buf1;
 					_buf1 = RemoveIacs((unsigned char *) buf1, buf1Len, ptyfd,
@@ -449,7 +448,6 @@ int ClientThread::MainProcess(int ptyfd) {
 			//判断socket是否可以写入数据，如果可以则把buf2写入socket
 			if (FD_ISSET(clientSocket, &wrfdset)) {
 				if (buf2Len > 0) {
-					LOG("6")
 					count = IacSafeWrite(clientSocket, (char *) buf2, buf2Len);
 					if (count < 0) {
 						if (errno != EAGAIN) {
@@ -517,18 +515,21 @@ void ClientThread::Run() {
 					getpid(), ttyName, clientIp, screenNum);
 			fflush(NULL);
 			int sockerr = MainProcess(ptyfd);
-			kill(pid, SIGKILL);
-			waitpid(pid, NULL, 0);
 			char cmd[128];
 			sprintf(cmd, "fuser -k %s", ttyName);
 			shell_execute(cmd);
-			close(ptyfd);
-			if (sockerr) {
-				close(clientSocket);
-				break;
+			if (0 == (waitpid(pid, NULL, WNOHANG))) {
+				int ret = kill(pid, SIGKILL);
+				if (ret) {
+					waitpid(pid, NULL, 0);
+				}
 			}
+			close(ptyfd);
+			close(clientSocket);
+			break;
 		} else if (pid == 0) { //子进程开始执行
 			close(ptyfd);
+			close(clientSocket);
 			SubProcess(ttyName);
 		} else if (pid < 0) {
 			printf("create process error: %d errno: %d\r\n", pid, errno);
